@@ -183,3 +183,10 @@ def test_no_dataset_names_in_code():
             if text and any(b in text.lower() for b in BANNED):
                 offenders.append(f"{path}:{node.lineno}: {text[:60]}")
     assert not offenders, offenders
+
+
+@pytest.mark.parametrize("n, primary", [(500, "vae"), (20_000, "ctgan")])
+def test_mixed_table_model_depends_on_n(n, primary):
+    prof = make_profile(n=n, p=6, n_categorical=2, classes={"a": n // 2, "b": n // 2})
+    plan, _ = run(prof, "Generate synthetic records for data sharing")
+    assert plan.models[0].name == primary

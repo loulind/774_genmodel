@@ -36,10 +36,17 @@ LOW_DIM_TABULAR = 100
 # Image sets smaller than this favour a VAE over diffusion: diffusion models are
 # documented to memorise small training sets (Somepalli et al. 2023).
 SMALL_IMAGE_TRAIN = 2_000
+# Mixed-type tables smaller than this favour a likelihood-based VAE (TVAE) over
+# CTGAN; Xu et al. (2019) report TVAE competitive or better on small tables.
+SMALL_TABLE_TRAIN = 1_000
 # Synthetic-to-real caps. Beyond ~10x, extra synthetic minority samples are
 # draws from a smoothed copy of a handful of real points, not new evidence.
 MAX_SYNTH_PER_REAL = 10
 AUGMENT_RATIO = 1.0
+# Flows on data with repeated rows: above this duplicate share, train on
+# x + N(0, DEQUANTISE_STD^2) in standardised units.
+DUPLICATE_TOLERANCE = 0.01
+DEQUANTISE_STD = 0.05
 
 
 def _pow2(x: float, lo: int, hi: int) -> int:
@@ -309,7 +316,18 @@ def choose_models(ctx: Context, task: TaskSpec, log: DecisionLog) -> list[ModelS
                       "multi-scale architectures beyond the budget")]
 
     else:  # tabular generation / augmentation / balancing
-        if ctx.is_mixed or (pr.shape.fraction_multimodal or 0) >= 0.3:
+        if (ctx.is_mixed or (pr.shape.fraction_multimodal or 0) >= 0.3) \
+                and ctx.n_train < SMALL_TABLE_TRAIN:
+            add("vae", "primary", "standardized",
+                f"Mixed-type table with only ~{ctx.n_train} training rows: a VAE with a "
+                "Gaussian/categorical likelihood (TVAE-style) converges in far fewer updates "
+                "than adversarial training and has a validation loss for early stopping.")
+            add("ctgan", "comparison", "mode_specific",
+                "CTGAN as comparison; at this n it is expected to under-train.")
+            rejected += [("ctgan as primary", f"needs many more updates than n~{ctx.n_train} "
+                          "rows give within budget (observed in development: continuous "
+                          "marginals still biased after 760 epochs on a 400-row table)")]
+        elif ctx.is_mixed or (pr.shape.fraction_multimodal or 0) >= 0.3:
             add("ctgan", "primary", "mode_specific",
                 f"Mixed column types ({pr.n_categorical} categorical, {pr.n_discrete} discrete, "
                 f"{pr.n_binary} binary) and multimodal continuous columns "
@@ -412,10 +430,16 @@ def choose_hyperparameters(ctx: Context, models: list[ModelSpec], log: DecisionL
         elif m.name in ("maf", "realnvp"):
             blocks = 5 if n >= 2000 else 3
             hidden = int(min(256, max(32, 8 * ctx.p_enc)))
-            hp.update(n_blocks=blocks, hidden_dim=hidden, lr=1e-3,
+            dup = max(pr.duplicate_fraction or 0, pr.near_duplicate_fraction or 0)
+            noise = DEQUANTISE_STD if dup > DUPLICATE_TOLERANCE else 0.0
+            hp.update(n_blocks=blocks, hidden_dim=hidden, lr=1e-3, noise_std=noise,
                       weight_decay=1e-5 if n >= 2000 else 1e-4)
             why.append(f"n_blocks={blocks}, hidden_dim={hidden} (8 x p, in [32, 256]); "
                        "fewer blocks and more decay at small n")
+            if noise:
+                why.append(f"noise_std={noise}: {100 * dup:.0f}% of rows are (near-)duplicates, "
+                           "on which a continuous density is degenerate, so the flow is "
+                           "trained on dequantised (jittered) data")
         elif m.name == "masked_vae":
             latent = int(min(16, max(2, ctx.p_enc // 4)))
             hidden = 64 if n < 1000 else 128
