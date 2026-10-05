@@ -415,10 +415,16 @@ def choose_hyperparameters(ctx: Context, models: list[ModelSpec], log: DecisionL
                       weight_decay=0.0 if n >= 2000 else 1e-5)
             why.append(f"hidden_dim={hidden}; weight decay only when n<2000")
         elif m.name == "ddpm_unet":
-            ch = 64 if n >= SMALL_IMAGE_TRAIN else 32
-            hp.update(base_channels=ch, timesteps=1000, sample_steps=100,
+            # Within a fixed time budget DDPM quality is limited by the number of
+            # optimiser updates. Measured on MPS: 64 channels / batch 256 gave ~4k
+            # updates in 25 min; 32 channels / batch 128 gave ~20k.
+            fast = ctx.budget.device == "cuda"
+            ch = 64 if (fast and n >= SMALL_IMAGE_TRAIN) else 32
+            hp.update(base_channels=ch, timesteps=1000, sample_steps=100, batch_size=128,
                       guidance_scale=2.0 if m.conditional else 0.0, p_uncond=0.1, lr=2e-4)
-            why += [f"base_channels={ch} ({'n>=' if ch == 64 else 'n<'}{SMALL_IMAGE_TRAIN})",
+            why[0] = "batch_size=128 (more updates per second within the time cap)"
+            why += [f"base_channels={ch} ({'CUDA and n>=' + str(SMALL_IMAGE_TRAIN) if ch == 64 else 'device ' + ctx.budget.device + ': maximise updates in budget'})",
+                    "v-prediction (well conditioned at high noise)",
                     "T=1000 training steps, 100 strided sampling steps (cost/quality trade-off)",
                     "guidance 2.0 with 10% label dropout (classifier-free guidance)"
                     if m.conditional else "unconditional"]

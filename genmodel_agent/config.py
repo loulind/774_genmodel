@@ -31,6 +31,7 @@ class Budget(BaseModel):
     max_train_samples: int | None = None   # subsample cap before training
     n_synthetic_max: int = 10_000          # samples generated for evaluation
     eval_max_samples: int = 5_000          # rows used by O(n^2) metrics
+    device: str = "mps"                    # set by RunConfig.budget(); planners read it
 
 
 class LLMConfig(BaseModel):
@@ -62,6 +63,7 @@ class RunConfig(BaseModel):
         base = self.quick_budget if self.quick else self.full
         scale = DEVICE_BUDGET_SCALE.get(device, 1.0)
         return base.model_copy(update={
+            "device": device,
             "train_seconds_image": base.train_seconds_image * scale,
             "train_seconds_other": base.train_seconds_other * scale,
         })
