@@ -104,3 +104,98 @@ class DataProfile(BaseModel):
         if self.zero_fraction > 0.5:
             parts.append(f"{100 * self.zero_fraction:.0f}% zeros")
         return ", ".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Objective
+# ---------------------------------------------------------------------------
+
+TaskType = Literal[
+    "generation", "augmentation", "class_balancing", "imputation",
+    "anomaly_detection", "representation_learning", "uncertainty_quantification",
+]
+
+
+class TaskSpec(BaseModel):
+    """The user's objective, made explicit. Produced by objective.py (+ LLM)."""
+    raw_objective: str
+    task_type: TaskType
+    secondary_tasks: list[TaskType] = Field(default_factory=list)
+    conditional: bool = False                 # generate per class
+    target_classes: list[str] = Field(default_factory=list)   # named in the objective
+    wants_rare_classes: bool = False          # "rare", "minority", "under-represented"
+    label_budget: float | None = None         # fraction (0,1] of training labels available
+    label_budget_per_class: int | None = None
+    downstream_task: Literal["classification", "none"] = "none"
+    wants_tstr: bool = False                  # train-on-synthetic-test-on-real requested
+    privacy_sensitive: bool = False
+    evidence: dict[str, list[str]] = Field(default_factory=dict)  # task -> matched phrases
+    source: Literal["heuristic", "llm"] = "heuristic"
+
+
+# ---------------------------------------------------------------------------
+# Plan
+# ---------------------------------------------------------------------------
+
+class ModelSpec(BaseModel):
+    name: str                                 # key in models.registry.REGISTRY
+    role: Literal["primary", "comparison"] = "primary"
+    conditional: bool = False
+    representation: str = "default"           # see registry: data space the model sees
+    hyperparameters: dict[str, float | int | str | bool] = Field(default_factory=dict)
+    train_seconds: float = 60.0
+    rationale: str = ""
+
+
+class DataPlan(BaseModel):
+    use_predefined_splits: bool = True
+    test_fraction: float = 0.2
+    val_fraction: float = 0.1
+    label_budget: float | None = None         # stratified fraction of train kept
+    max_train_samples: int | None = None
+    n_hvg: int | None = None                  # counts only
+
+
+class SamplingPlan(BaseModel):
+    strategy: Literal["match_real", "rebalance_targets", "augment_per_class", "none"] = "match_real"
+    target_classes: list[str] = Field(default_factory=list)
+    n_per_class: dict[str, int] = Field(default_factory=dict)
+    n_total: int = 0
+
+
+class EvalPlan(BaseModel):
+    metrics: list[str]
+    primary_metric: str
+    baselines: list[str] = Field(default_factory=list)
+    feature_space: str = "default"            # where fidelity is measured
+
+
+class Plan(BaseModel):
+    use_generative_model: bool
+    decision_rationale: str
+    alternative_if_not: str | None = None     # required when use_generative_model is False
+    task: TaskSpec
+    data: DataPlan = Field(default_factory=DataPlan)
+    models: list[ModelSpec] = Field(default_factory=list)
+    sampling: SamplingPlan = Field(default_factory=SamplingPlan)
+    evaluation: EvalPlan | None = None
+    source: Literal["heuristic", "llm", "llm_repaired", "heuristic_fallback"] = "heuristic"
+
+
+# ---------------------------------------------------------------------------
+# Decision log
+# ---------------------------------------------------------------------------
+
+class Alternative(BaseModel):
+    option: str
+    reason: str
+
+
+class Decision(BaseModel):
+    step: str                     # profile | objective | warrant | model | hyperparameters | ...
+    decision: str                 # what was being decided
+    chosen: str
+    rationale: str
+    alternatives_rejected: list[Alternative] = Field(default_factory=list)
+    evidence: dict[str, float | int | str | bool | None | list | dict] = Field(default_factory=dict)
+    source: Literal["heuristic", "llm", "validator", "critic", "system"] = "heuristic"
