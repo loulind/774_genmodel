@@ -1,0 +1,16 @@
+# Budgets, seeds and LLM settings only. Modeling decisions are never configured;
+# they come from the data profile and the objective.
+seed: 774
+device: auto
+max_critic_revisions: 1
+full:
+  train_seconds_image: 1500
+  train_seconds_other: 480
+  max_epochs: 400
+  n_synthetic_max: 10000
+  eval_max_samples: 5000
+llm:
+  enabled: true
+  backend: claude_agent_sdk
+  model: claude-opus-5-5
+  max_output_tokens: 8000

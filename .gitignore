@@ -1,0 +1,31 @@
+.DS_Store
+
+# Python / environment
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Raw data: fetched by scripts/prepare_data.py, never committed
+data/
+
+# Per-run scratch (timestamped), model checkpoints, caches, logs
+runs/
+scratch/
+checkpoints/
+*.pt
+*.ckpt
+*.pth
+llm_cache/
+*.log
+
+# Notes and course materials that are not part of the submission
+PROGRESS.md
+CLAUDE.md
+.claude/
+assignment*
+*.docx
+
+# Secrets
+.env
