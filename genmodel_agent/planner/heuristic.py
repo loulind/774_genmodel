@@ -96,7 +96,8 @@ def assess_warrant(ctx: Context, log: DecisionLog) -> tuple[bool, str, str | Non
 
     def decline(reason: str, alternative: str):
         log.add("warrant", "use a generative model?", "no", reason,
-                [("train a generative model", reason)], ev)
+                [("train a generative model", "not warranted for the reason given; "
+                  f"alternative instead: {alternative}")], ev)
         return False, reason, alternative, task
 
     def accept(reason: str, rejected: list[tuple[str, str]]):

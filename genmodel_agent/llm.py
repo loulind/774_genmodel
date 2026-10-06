@@ -162,6 +162,18 @@ class LLMClient:
                     (self.cache_dir / key).write_text(path.read_text())
                 return resp
         if self.replay_from is not None:
+            # Prompts embed run results, so a replay can differ in incidental
+            # digits; the call sequence (planner, critic, writer) is what is
+            # reproduced, so fall back to the cached response for this role.
+            same_role = sorted(self.replay_from.glob(f"{role}_*.json"))
+            if len(same_role) == 1:
+                rec = json.loads(same_role[0].read_text())
+                resp = LLMResponse(text=rec["text"], backend=rec["backend"],
+                                   model_requested=rec["model_requested"],
+                                   model_used=rec["model_used"], seconds=0.0,
+                                   cost_usd=rec.get("cost_usd"), cached=True)
+                self._record(role, same_role[0].name + " (matched by role)", resp)
+                return resp
             raise LLMUnavailable(f"replay: no cached response for {role} ({key})")
         resp = self.backend.complete(system, user)
         self.cache_dir.mkdir(parents=True, exist_ok=True)

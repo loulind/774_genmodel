@@ -108,7 +108,8 @@ def plan(profile: DataProfile, task: TaskSpec, budget: Budget, log: DecisionLog,
     log.extend(proposal_log.entries)
 
     def fallback(reason: str) -> Plan:
-        log.add("planner", "planner used", "heuristic (fallback)", reason, [], {},
+        log.add("planner", "planner used",
+                "heuristic (fallback)" if client.available else "heuristic", reason, [], {},
                 source="system")
         checked = validate(proposal, profile, budget)
         for r in checked.repairs:

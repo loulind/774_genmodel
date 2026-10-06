@@ -40,8 +40,11 @@ def test_cache_and_replay(tmp_path):
     assert c.complete("r", "s", "u").cached and backend.n == 1          # second call: cache
     replay = LLMClient(FakeBackend([]), tmp_path / "new", replay_from=tmp_path / "cache")
     assert replay.complete("r", "s", "u").text == '{"x": 1}'
+    # Prompt drift (e.g. different incidental digits) falls back to the role's response...
+    assert replay.complete("r", "s", "different prompt").text == '{"x": 1}'
+    # ...but a role that was never called cannot be replayed.
     with pytest.raises(LLMUnavailable):
-        replay.complete("r", "s", "different prompt")
+        replay.complete("other_role", "s", "u")
 
 
 def _setup():

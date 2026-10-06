@@ -173,10 +173,14 @@ def find_triggers(plan: Plan, results: dict) -> list[Trigger]:
 # Judgement
 # ---------------------------------------------------------------------------
 
-def _rule_critique(triggers: list[Trigger]) -> Critique:
+def _rule_critique(triggers: list[Trigger], primary: str | None = None) -> Critique:
+    """One revision is available, so spend it on the model whose results the
+    recommendations rest on: retunes of a comparison model are logged, not run."""
     for code in PRIORITY:
         for t in triggers:
-            if t.code == code and t.suggested_action != "none":
+            if t.code == code and t.suggested_action != "none" and \
+                    (primary is None or t.suggested_action == "switch" or
+                     t.suggested_target == primary):
                 return Critique(
                     assessment=f"Rule-based critic: trigger '{t.code}' -- {t.message}.",
                     action=t.suggested_action, target_model=t.suggested_target,
@@ -213,8 +217,11 @@ def _validated(c: dict, plan: Plan, profile: DataProfile, triggers) -> Critique 
         expected_effect=str(c.get("expected_effect", "")), triggers=triggers, source="llm")
 
 
+VOLATILE = {"seconds"}
+
+
 def critique(plan: Plan, profile: DataProfile, results: dict, training: dict,
-             client: LLMClient, log: DecisionLog) -> Critique:
+             client: LLMClient, log: DecisionLog, budget: dict | None = None) -> Critique:
     triggers = find_triggers(plan, results)
     for t in triggers:
         log.add("critic", f"trigger: {t.code}", t.model, t.message, [],
@@ -222,8 +229,11 @@ def critique(plan: Plan, profile: DataProfile, results: dict, training: dict,
                 source="critic")
     out = None
     if client.available:
+        training = {n: {k: v for k, v in t.items() if k not in VOLATILE}
+                    for n, t in training.items()}
         payload = {"objective": plan.task.raw_objective, "plan": plan.model_dump(),
                    "profile_summary": profile.brief(), "training": training,
+                   "compute_budget": budget or {},
                    "results": results, "triggers": [t.model_dump() for t in triggers],
                    "model_library": library_summary()}
         try:
@@ -237,7 +247,8 @@ def critique(plan: Plan, profile: DataProfile, results: dict, training: dict,
                         source="validator")
         except (LLMUnavailable, ValueError) as err:
             log.add("critic", "LLM critique", "unavailable", str(err), source="system")
-    out = out or _rule_critique(triggers)
+    primary = next((m.name for m in plan.models if m.role == "primary"), None)
+    out = out or _rule_critique(triggers, primary)
     log.add("critic", "revise the plan?",
             out.action if out.action == "none" else f"{out.action} {out.target_model} "
             f"{out.hyperparameter_changes or ''}".strip(),

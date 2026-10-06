@@ -47,7 +47,7 @@ class RunConfig(BaseModel):
     seed: int = 774
     device: str = "auto"                    # auto | cuda | mps | cpu
     quick: bool = False
-    replay: bool = False                    # reuse cached LLM responses only
+    replay: str | None = None               # directory of cached LLM responses to replay
     runs_dir: str = "runs"
     label_column: str | None = None
     max_critic_revisions: int = 1
