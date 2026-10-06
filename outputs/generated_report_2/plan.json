@@ -1,0 +1,112 @@
+{
+  "use_generative_model": true,
+  "decision_rationale": "The objective asks for new synthetic cells for rare classes to support classification. The data are UMI-like counts (integers in [0, 419], 97.4% zeros, 96.7% of assessed genes overdispersed) with 8 classes and an imbalance ratio of 76.3. Two classes are far below the rest: Dendritic cells (37) and Megakaryocytes (15). A conditional count-likelihood VAE trained on all 2,638 cells can share structure across classes. That is a better basis for minority augmentation than interpolating among 15 or 37 cells. Megakaryocytes are close to the memorisation limit, so the plan caps augmentation, tracks memorisation and keeps class-weighting as a baseline that must be beaten.",
+  "alternative_if_not": null,
+  "task": {
+    "raw_objective": "Generate realistic synthetic cells for rare cell types to support downstream cell-type classification.",
+    "task_type": "class_balancing",
+    "secondary_tasks": [
+      "generation"
+    ],
+    "conditional": true,
+    "target_classes": [
+      "Dendritic cells",
+      "Megakaryocytes"
+    ],
+    "wants_rare_classes": true,
+    "label_budget": null,
+    "label_budget_per_class": null,
+    "downstream_task": "classification",
+    "wants_tstr": false,
+    "privacy_sensitive": false,
+    "evidence": {
+      "class_balancing": [
+        "rare"
+      ],
+      "generation": [
+        "generate",
+        "synthetic"
+      ]
+    },
+    "source": "heuristic"
+  },
+  "data": {
+    "use_predefined_splits": false,
+    "test_fraction": 0.2,
+    "val_fraction": 0.1,
+    "label_budget": null,
+    "max_train_samples": null,
+    "n_hvg": 2000
+  },
+  "models": [
+    {
+      "name": "nb_vae",
+      "role": "primary",
+      "conditional": true,
+      "representation": "counts_hvg",
+      "hyperparameters": {
+        "latent_dim": 10,
+        "hidden_dim": 128,
+        "n_layers": 1,
+        "beta": 1.0,
+        "lr": 0.001,
+        "batch_size": 128,
+        "max_epochs": 400,
+        "weight_decay": 1e-05
+      },
+      "train_seconds": 480.0,
+      "rationale": "UMI counts are overdispersed integers (median var/mean 1.51; 96.7% of genes overdispersed). The NB likelihood fits the zeros well: excess zeros vs NB are -0.029, and ZINB is preferred for only 2.3% of genes. The observed library size (median 2,214) is used as an offset. A small network is used because n_train is about 1,850."
+    },
+    {
+      "name": "vae",
+      "role": "comparison",
+      "conditional": true,
+      "representation": "lognorm_hvg",
+      "hyperparameters": {
+        "latent_dim": 10,
+        "hidden_dim": 128,
+        "n_layers": 1,
+        "beta": 1.0,
+        "lr": 0.001,
+        "batch_size": 128,
+        "max_epochs": 2000,
+        "weight_decay": 1e-05
+      },
+      "train_seconds": 240.0,
+      "rationale": "Gaussian VAE on log-normalised expression, matched in size to the primary model. It tests whether the count likelihood actually helps."
+    }
+  ],
+  "sampling": {
+    "strategy": "rebalance_targets",
+    "target_classes": [
+      "Dendritic cells",
+      "Megakaryocytes"
+    ],
+    "n_per_class": {
+      "Dendritic cells": 205,
+      "Megakaryocytes": 90
+    },
+    "n_total": 1846
+  },
+  "evaluation": {
+    "metrics": [
+      "precision_recall",
+      "density_coverage",
+      "frechet_distance",
+      "mmd",
+      "memorization",
+      "marginals",
+      "correlation",
+      "utility_augmented",
+      "per_class_recall",
+      "auprc"
+    ],
+    "primary_metric": "target_class_recall_gain",
+    "baselines": [
+      "real_only_classifier",
+      "class_weighted_classifier"
+    ],
+    "feature_space": "lognorm_pca50"
+  },
+  "source": "llm"
+}

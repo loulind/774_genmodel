@@ -1,0 +1,318 @@
+[
+  {
+    "step": "system",
+    "decision": "compute",
+    "chosen": "mps, full mode",
+    "rationale": "Detected Apple GPU (MPS) on arm64; per-model training caps 1500s (images) / 480s (other); seed 774.",
+    "alternatives_rejected": [],
+    "evidence": {
+      "device": "mps",
+      "device_name": "Apple GPU (MPS) on arm64",
+      "cpu": "arm",
+      "n_cpu": 10,
+      "memory_gb": 17.2,
+      "torch_version": "2.14.1"
+    },
+    "source": "system"
+  },
+  {
+    "step": "profile",
+    "decision": "data modality",
+    "chosen": "counts",
+    "rationale": "non-negative integers, 97% zeros, p=32738 (>= 100)",
+    "alternatives_rejected": [],
+    "evidence": {
+      "n": 2638,
+      "p": 32738,
+      "brief": "counts, n=2,638, p=32,738, 8 classes (imb 76.3), 97% zeros"
+    },
+    "source": "system"
+  },
+  {
+    "step": "objective",
+    "decision": "task type",
+    "chosen": "class_balancing",
+    "rationale": "Matched phrases: {'class_balancing': ['rare'], 'generation': ['generate', 'synthetic']}.",
+    "alternatives_rejected": [
+      {
+        "option": "generation",
+        "reason": "lower precedence"
+      }
+    ],
+    "evidence": {
+      "conditional": true,
+      "label_budget": null,
+      "target_classes": [],
+      "wants_tstr": false
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "warrant",
+    "decision": "use a generative model?",
+    "chosen": "yes",
+    "rationale": "Objective 'class_balancing' requires new samples and the data support it (counts, n=2,638, p=32,738, 8 classes (imb 76.3), 97% zeros).",
+    "alternatives_rejected": [
+      {
+        "option": "no generative model",
+        "reason": "objective explicitly needs synthetic samples; utility against a real-only baseline will test whether they help"
+      }
+    ],
+    "evidence": {
+      "modality": "counts",
+      "n_train_est": 1846,
+      "p_encoded": 32738,
+      "task": "class_balancing"
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "preprocessing",
+    "decision": "genes modelled",
+    "chosen": "top 2000 highly variable genes",
+    "rationale": "3857 genes are detected in >=5% of cells; 2,000 HVGs is the standard Scanpy/Seurat choice and keeps p comparable to n.",
+    "alternatives_rejected": [
+      {
+        "option": "all genes",
+        "reason": "p=32738 >> n, mostly near-silent"
+      }
+    ],
+    "evidence": {
+      "n_features_assessed": 3857
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "model",
+    "decision": "count likelihood",
+    "chosen": "NB",
+    "rationale": "Genes are overdispersed (median var/mean 1.51) but ZINB beats NB by AIC for only 2% of genes (median fitted zero-inflation 0.016); the extra parameter is not supported.",
+    "alternatives_rejected": [
+      {
+        "option": "ZINB",
+        "reason": "zero-inflation not supported by per-gene likelihood comparison"
+      },
+      {
+        "option": "Poisson",
+        "reason": "ignores overdispersion"
+      },
+      {
+        "option": "Gaussian on log counts",
+        "reason": "misstates the mean-variance relation; kept as the comparison model"
+      }
+    ],
+    "evidence": {
+      "median_zero_inflation_pi": 0.015634388277715704,
+      "fraction_genes_zinb_preferred": 0.023333333333333334,
+      "median_dispersion_ratio": 1.5125033855438232
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "model",
+    "decision": "primary model",
+    "chosen": "nb_vae",
+    "rationale": "UMI counts are overdispersed integers; a count likelihood with the observed library size as offset models them directly (scVI-style).",
+    "alternatives_rejected": [
+      {
+        "option": "wgan_gp",
+        "reason": "no likelihood to monitor and prone to mode collapse; with rare classes of ~10 cells a collapsed mode would erase them"
+      },
+      {
+        "option": "ddpm_mlp",
+        "reason": "models continuous transformed values rather than counts and is data-hungry at n of a few thousand"
+      },
+      {
+        "option": "flows",
+        "reason": "p=32738 genes far exceeds the 200-d limit for full-rank flows"
+      }
+    ],
+    "evidence": {
+      "modality": "counts",
+      "n_train_est": 1846,
+      "p_encoded": 32738
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "model",
+    "decision": "comparison model",
+    "chosen": "vae",
+    "rationale": "Gaussian VAE on log-normalised expression: tests whether the count likelihood actually matters for these data.",
+    "alternatives_rejected": [],
+    "evidence": {
+      "modality": "counts",
+      "n_train_est": 1846,
+      "p_encoded": 32738
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "hyperparameters",
+    "decision": "nb_vae (primary)",
+    "chosen": "batch_size=128, latent_dim=10, hidden_dim=128, n_layers=1, max_epochs=400, lr=0.001",
+    "rationale": "batch_size=128 (~n/20, power of two in [32, 256]); latent_dim=10 (scVI default; 5 if n<1000); max_epochs=400 (scVI rule min(400, 20000/n*400)). Training capped at 480s wall-clock.",
+    "alternatives_rejected": [],
+    "evidence": {
+      "n_train_est": 1846,
+      "pca_components_90": 200,
+      "train_seconds": 480.0
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "hyperparameters",
+    "decision": "vae (comparison)",
+    "chosen": "batch_size=128, latent_dim=10, hidden_dim=128, beta=1.0, lr=0.001, weight_decay=1e-05, max_epochs=2000",
+    "rationale": "batch_size=128 (~n/20, power of two in [32, 256]); latent_dim=10, matched to the count model for a fair comparison; hidden_dim=128; weight decay only when n<2000. Training capped at 240s wall-clock.",
+    "alternatives_rejected": [],
+    "evidence": {
+      "n_train_est": 1846,
+      "pca_components_90": 200,
+      "train_seconds": 240.0
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "sampling",
+    "decision": "how many samples, of what",
+    "chosen": "rebalance_targets",
+    "rationale": "Raise each target class to min(median size of the other classes ~230, 10x its real count); beyond that, synthetic points are draws from a smoothed copy of a few real cells, not new evidence. Evaluation sample n=1846.",
+    "alternatives_rejected": [],
+    "evidence": {
+      "n_per_class": {
+        "Dendritic cells": 205,
+        "Megakaryocytes": 90
+      }
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "evaluation",
+    "decision": "evaluation criteria",
+    "chosen": "precision_recall, density_coverage, frechet_distance, mmd, memorization, marginals, correlation, utility_augmented, per_class_recall",
+    "rationale": "Fidelity, diversity and memorization measured in lognorm_pca50 (a domain-appropriate space: Inception features would be mis-specified for these data); utility via a downstream classifier. Primary metric 'target_class_recall_gain' is the quantity the objective asks to improve.",
+    "alternatives_rejected": [],
+    "evidence": {
+      "primary_metric": "target_class_recall_gain"
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "warrant",
+    "decision": "Adopt generative augmentation, with an explicit caveat for Megakaryocytes",
+    "chosen": "use_generative_model = true",
+    "rationale": "The objective asks for synthetic rare-class cells, and the imbalance ratio is 76.3. Dendritic cells (37 cells, about 26 in train after the 0.2/0.1 split) are enough for a conditional decoder that shares structure with the other 2,600 cells. Megakaryocytes (15 cells, about 10 in train, about 3 in test) are at the memorisation limit. The plan keeps them as a target but caps their synthetic count, checks memorisation, and requires the augmented classifier to beat class_weighted_classifier. If it does not, the conclusion is that class weighting alone is enough for that class.",
+    "alternatives_rejected": [
+      {
+        "option": "No generative model; use class_weighted_classifier only",
+        "reason": "The objective explicitly asks for synthetic cells, and DC (37) can support a conditional generator. Class-weighting is kept as the baseline to beat, not as a replacement."
+      }
+    ],
+    "evidence": {},
+    "source": "llm"
+  },
+  {
+    "step": "hyperparameters",
+    "decision": "Set beta and weight_decay explicitly for nb_vae, and n_layers explicitly for vae",
+    "chosen": "nb_vae: beta=1.0, weight_decay=1e-5; vae: n_layers=1",
+    "rationale": "Light weight decay limits overfitting to the about 10 Megakaryocyte training cells, which the conditional decoder could otherwise memorise. Pinning beta and n_layers makes the two models identical in architecture, so their comparison isolates the likelihood. 400 epochs at about 15 steps per epoch (n_train about 1,850 / 128) is about 6,000 updates. For a 2,000-gene, 128-unit network this should fit within 480 s, so the epoch count was not reduced.",
+    "alternatives_rejected": [
+      {
+        "option": "Larger network (hidden_dim 256+, 2 layers)",
+        "reason": "With n_over_p = 0.081 (n \u2248 1,850 vs 2,000 HVGs) and very few rare-class cells, extra capacity mainly increases the risk of memorisation."
+      },
+      {
+        "option": "zinb_vae",
+        "reason": "ZINB is preferred for only 2.3% of genes, the median zero-inflation pi is 0.016, and excess zeros vs NB are -0.029. The data do not support the extra parameter."
+      }
+    ],
+    "evidence": {},
+    "source": "llm"
+  },
+  {
+    "step": "evaluation",
+    "decision": "Add AUPRC as a supporting utility metric; keep target_class_recall_gain as primary",
+    "chosen": "metrics += auprc",
+    "rationale": "With a 0.2 test fraction, the test set holds only about 3 Megakaryocytes and about 7 Dendritic cells. Recall on 3 cells moves in steps of 33 percentage points, so the primary metric is very noisy. Per-class AUPRC does not depend on a threshold and uses the classifier's ranking of all test cells. It is a steadier check on whether the gain is real. Read the memorisation metric carefully for the target classes: with about 10 real Megakaryocytes in training, synthetic cells sitting at nearest-neighbour distance to real training cells would mean the model is copying them.",
+    "alternatives_rejected": [
+      {
+        "option": "macro_f1_gain as primary",
+        "reason": "The objective is about rare-class performance. Macro-F1 averages in 6 well-populated classes, which dilutes the signal, and it is still threshold-dependent."
+      },
+      {
+        "option": "Raise test_fraction to 0.3 to get more rare test cells",
+        "reason": "It would add only about 1 Megakaryocyte to the test set while taking away about 1.5 of the 10 training cells. That trade hurts the generator more than it helps the estimate."
+      }
+    ],
+    "evidence": {},
+    "source": "llm"
+  },
+  {
+    "step": "planner",
+    "decision": "planner used",
+    "chosen": "llm",
+    "rationale": "LLM revised the rule-based proposal: nb_vae hyperparameters beta: None -> 1.0, weight_decay: None -> 1e-05; vae hyperparameters n_layers: None -> 1",
+    "alternatives_rejected": [],
+    "evidence": {
+      "llm_model": "claude-opus-5-5",
+      "n_changes": 2
+    },
+    "source": "llm"
+  },
+  {
+    "step": "preprocessing",
+    "decision": "data split",
+    "chosen": "train 1846 / val 264 / test 528",
+    "rationale": "stratified split 70%/10%/20% (seed 774)",
+    "alternatives_rejected": [],
+    "evidence": {},
+    "source": "system"
+  },
+  {
+    "step": "evaluation",
+    "decision": "feature space",
+    "chosen": "PCA(50) of log-normalised expression of 2000 highly variable genes",
+    "rationale": "Fitted on real training data only.",
+    "alternatives_rejected": [],
+    "evidence": {},
+    "source": "system"
+  },
+  {
+    "step": "critic",
+    "decision": "revise the plan?",
+    "chosen": "none",
+    "rationale": "The run is adequate for the objective. On the primary metric, nb_vae lifts target-class recall from 0.690 to 1.000 (gain +0.310, 95% CI [0.00, 0.69], P(gain>0)=0.94). Against the class-weighted baseline the gain is +0.238 (CI [0.00, 0.60], P=0.88). Macro-F1 also rises slightly, +0.024, but that CI [-0.037, 0.136] includes zero. Overall fidelity is close to the real-holdout reference: Fr\u00e9chet 12.4 vs 11.0, MMD 0.0088 vs 0.0048, marginal KS 0.047 vs 0.027, coverage 0.967 vs 0.998, precision 0.973 vs 0.999. Count marginals also match well: zero fraction 0.9255 vs 0.9257 and gene-mean correlation 0.998. No memorisation was flagged (DCR ratio 1.04, no exact copies, 1.6% too-close). The main weakness is Megakaryocytes: per-class coverage and recall are both 0.2 and density is 0.28, so the synthetic cells probably cover only part of that class. That estimate rests on just 5 holdout cells, though. The primary metric can't go higher. Augmented target-class recall is already 1.000, so no revision could raise target_class_recall_gain above +0.310, and a revision is only kept if the primary metric improves. Retraining would spend compute with no possible payoff on that metric. The intervals are also very wide because the target classes have only a handful of test cells: real-only recalls of 0.714 and 0.667 point to roughly 7 and 3 cells. Any further change would be measured on noise. nb_vae clearly beats the Gaussian VAE on fidelity (Fr\u00e9chet 12.4 vs 24.6, MMD 0.0088 vs 0.0207, marginal KS 0.047 vs 0.406, Dendritic-cell precision 0.92 vs 0.31). Both models give the same primary gain, so there is no reason to switch. Training stopped early and cleanly at epoch 133 of 158, well under the 400-epoch cap, and the gap between train loss (480) and validation loss (492) is small. Neither suggests a hyperparameter problem.",
+    "alternatives_rejected": [
+      {
+        "option": "retune nb_vae (e.g. lower beta to 0.5, or raise latent_dim) to improve Megakaryocyte coverage (0.2)",
+        "reason": "Target recall is already 1.000, so the primary metric can't improve and the revision would be thrown away. The Megakaryocyte coverage figure rests on 5 holdout and 10 training cells, which is too few to tell a real gap from chance. A lower beta also raises the memorisation risk for a 10-cell class."
+      },
+      {
+        "option": "switch to vae (comparison)",
+        "reason": "It gives the same primary gain (+0.310) but much worse fidelity: Fr\u00e9chet 24.6, marginal KS 0.41, Dendritic-cell precision 0.31 and Megakaryocyte recall 0.0. Its macro-F1 is no better than the class-weighted baseline (-0.001)."
+      },
+      {
+        "option": "switch to zinb_vae",
+        "reason": "The profile prefers ZINB for only 2.3% of genes, and NB already matches the zero fraction almost exactly (0.9255 vs 0.9257). The primary metric is also already at its maximum."
+      },
+      {
+        "option": "switch to ddpm_mlp on lognorm_pca",
+        "reason": "This would drop the count likelihood that is working well here. A diffusion model is also more likely to memorise a 10-cell class, and it cannot beat a primary metric that is already at its maximum."
+      }
+    ],
+    "evidence": {
+      "expected_effect": "None; no revision is proposed. Target-class recall gain stays at +0.310, which is the most it can be, with nb_vae fidelity close to the real-holdout reference. Before relying on the size of the gain, re-check it on a larger or repeated (cross-validated) split, because the lower end of the CI sits at 0."
+    },
+    "source": "critic"
+  },
+  {
+    "step": "recommendation",
+    "decision": "verdict",
+    "chosen": "No reliable effect of augmentation on target-class recall: +0.310 (95% CI +0.000 to +0.688); the interval includes zero.",
+    "rationale": "No reliable effect of augmentation on target-class recall: +0.310 (95% CI +0.000 to +0.688); the interval includes zero.",
+    "alternatives_rejected": [],
+    "evidence": {},
+    "source": "system"
+  }
+]

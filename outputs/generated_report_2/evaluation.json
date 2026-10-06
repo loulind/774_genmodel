@@ -1,0 +1,243 @@
+{
+  "generative": {
+    "feature_space": "PCA(50) of log-normalised expression of 2000 highly variable genes",
+    "n_real_train_eval": 1846,
+    "n_real_holdout_eval": 792,
+    "holdout_definition": "validation + test splits (both drawn IID by the agent)",
+    "models": {
+      "nb_vae": {
+        "precision": 0.9734848484848485,
+        "recall": 0.32881906825568796,
+        "density": 4.267424242424243,
+        "coverage": 0.9674972914409534,
+        "frechet_distance": 12.397989457099353,
+        "mmd": 0.00875324010848999,
+        "marginal_ks_mean": 0.04651198908686638,
+        "correlation_mean_abs_diff": 0.03868528229349015,
+        "dcr_median_synth": 12.436357975006104,
+        "dcr_median_holdout": 12.014307975769043,
+        "dcr_ratio": 1.035128947925113,
+        "too_close_fraction": 0.016251354279523293,
+        "exact_copy_fraction": 0.0,
+        "mannwhitney_p_synth_closer": 1.0,
+        "memorization_flag": false,
+        "n_synth_eval": 792,
+        "count_marginals": {
+          "gene_mean_corr": 0.998239637976414,
+          "gene_var_corr": 0.9151667512187855,
+          "zero_fraction_real": 0.9256988082340194,
+          "zero_fraction_synth": 0.9254967497291441,
+          "gene_zero_fraction_corr": 0.997066368011242,
+          "library_size_ks": 0.07313109934329987
+        },
+        "target_classes": {
+          "Dendritic cells": {
+            "precision": 0.9230769230769231,
+            "recall": 0.7692307692307693,
+            "density": 0.876923076923077,
+            "coverage": 0.8846153846153846,
+            "dcr_ratio": 1.2616177053128916,
+            "too_close_fraction": 0.0,
+            "n_real_train": 26,
+            "n_real_holdout": 11,
+            "n_synth": 26,
+            "k_nn": 5
+          },
+          "Megakaryocytes": {
+            "precision": 0.9,
+            "recall": 0.2,
+            "density": 0.27999999999999997,
+            "coverage": 0.2,
+            "dcr_ratio": 2.162841463370611,
+            "too_close_fraction": 0.0,
+            "n_real_train": 10,
+            "n_real_holdout": 5,
+            "n_synth": 10,
+            "k_nn": 5
+          }
+        }
+      },
+      "vae": {
+        "precision": 0.9141414141414141,
+        "recall": 0.3066088840736728,
+        "density": 4.47929292929293,
+        "coverage": 0.8575297941495125,
+        "frechet_distance": 24.615815944313443,
+        "mmd": 0.02074587345123291,
+        "marginal_ks_mean": 0.40639957785606384,
+        "correlation_mean_abs_diff": 0.043347682124229646,
+        "dcr_median_synth": 12.679308891296387,
+        "dcr_median_holdout": 12.014307975769043,
+        "dcr_ratio": 1.0553507465322636,
+        "too_close_fraction": 0.0005417118093174431,
+        "exact_copy_fraction": 0.0,
+        "mannwhitney_p_synth_closer": 1.0,
+        "memorization_flag": false,
+        "n_synth_eval": 792,
+        "target_classes": {
+          "Dendritic cells": {
+            "precision": 0.3076923076923077,
+            "recall": 0.9230769230769231,
+            "density": 0.11538461538461538,
+            "coverage": 0.3076923076923077,
+            "dcr_ratio": 1.8408491664244622,
+            "too_close_fraction": 0.0,
+            "n_real_train": 26,
+            "n_real_holdout": 11,
+            "n_synth": 26,
+            "k_nn": 5
+          },
+          "Megakaryocytes": {
+            "precision": 0.5,
+            "recall": 0.0,
+            "density": 0.1,
+            "coverage": 0.1,
+            "dcr_ratio": 2.3443210362100695,
+            "too_close_fraction": 0.0,
+            "n_real_train": 10,
+            "n_real_holdout": 5,
+            "n_synth": 10,
+            "k_nn": 5
+          }
+        }
+      }
+    },
+    "reference_real_holdout": {
+      "precision": 0.9987373737373737,
+      "recall": 0.261646803900325,
+      "density": 6.2696969696969695,
+      "coverage": 0.9978331527627302,
+      "frechet_distance": 10.979445548386757,
+      "mmd": 0.004790604114532471,
+      "marginal_ks_mean": 0.02738460712134838,
+      "correlation_mean_abs_diff": 0.03332312089456693
+    },
+    "utility": {
+      "real_only": {
+        "macro_f1": 0.9113811438789113,
+        "macro_f1_sd": 1.1102230246251565e-16,
+        "balanced_accuracy": 0.8776945060728427,
+        "target_class_recall": 0.6904761904761904,
+        "per_class_recall": {
+          "0": 1.0,
+          "1": 0.9791666666666666,
+          "2": 0.982532751091703,
+          "3": 0.8412698412698413,
+          "4": 0.7142857142857143,
+          "5": 0.9666666666666667,
+          "6": 0.6666666666666666,
+          "7": 0.8709677419354839
+        },
+        "n_seeds": 3
+      },
+      "models": {
+        "nb_vae": {
+          "augmented": {
+            "macro_f1": 0.9355461089792434,
+            "macro_f1_sd": 0.0,
+            "balanced_accuracy": 0.9512433966079504,
+            "target_class_recall": 1.0,
+            "per_class_recall": {
+              "0": 1.0,
+              "1": 0.96875,
+              "2": 0.9781659388646288,
+              "3": 0.8253968253968255,
+              "4": 1.0,
+              "5": 0.9666666666666667,
+              "6": 1.0,
+              "7": 0.8709677419354839
+            },
+            "n_seeds": 3
+          },
+          "macro_f1_gain": {
+            "gain": 0.02416496510033206,
+            "ci_low": -0.036574532180730736,
+            "ci_high": 0.1362951825484497,
+            "prob_positive": 0.751
+          },
+          "target_class_recall_gain": {
+            "gain": 0.30952380952380965,
+            "ci_low": 0.0,
+            "ci_high": 0.6875,
+            "prob_positive": 0.938
+          },
+          "vs_class_weighted_macro_f1": {
+            "gain": 0.017567516623262835,
+            "ci_low": -0.03744686449407553,
+            "ci_high": 0.13035238881700292,
+            "prob_positive": 0.695
+          },
+          "vs_class_weighted_target_recall": {
+            "gain": 0.23809523809523814,
+            "ci_low": 0.0,
+            "ci_high": 0.5999999999999999,
+            "prob_positive": 0.879
+          },
+          "n_synthetic_added": 295
+        },
+        "vae": {
+          "augmented": {
+            "macro_f1": 0.9170473450815356,
+            "macro_f1_sd": 0.0,
+            "balanced_accuracy": 0.9469525053970266,
+            "target_class_recall": 1.0,
+            "per_class_recall": {
+              "0": 1.0,
+              "1": 0.9895833333333334,
+              "2": 0.9737991266375546,
+              "3": 0.8412698412698413,
+              "4": 1.0,
+              "5": 0.9,
+              "6": 1.0,
+              "7": 0.8709677419354839
+            },
+            "n_seeds": 3
+          },
+          "macro_f1_gain": {
+            "gain": 0.005666201202624288,
+            "ci_low": -0.08010744800840769,
+            "ci_high": 0.11668258554857758,
+            "prob_positive": 0.599
+          },
+          "target_class_recall_gain": {
+            "gain": 0.30952380952380965,
+            "ci_low": 0.0,
+            "ci_high": 0.7,
+            "prob_positive": 0.95
+          },
+          "vs_class_weighted_macro_f1": {
+            "gain": -0.0009312472744449352,
+            "ci_low": -0.07540882235927816,
+            "ci_high": 0.10274965995342349,
+            "prob_positive": 0.556
+          },
+          "vs_class_weighted_target_recall": {
+            "gain": 0.23809523809523814,
+            "ci_low": 0.0,
+            "ci_high": 0.5999999999999999,
+            "prob_positive": 0.885
+          },
+          "n_synthetic_added": 295
+        }
+      },
+      "classifier": "multinomial logistic regression (C=1, lbfgs) on standardised evaluation features (PCA(50) of log-normalised expression of 2000 highly variable genes)",
+      "class_weighted": {
+        "macro_f1": 0.9179785923559806,
+        "macro_f1_sd": 0.0,
+        "balanced_accuracy": 0.8964432064263467,
+        "target_class_recall": 0.7619047619047619,
+        "per_class_recall": {
+          "0": 1.0,
+          "1": 0.9791666666666666,
+          "2": 0.9563318777292577,
+          "3": 0.8412698412698413,
+          "4": 0.8571428571428571,
+          "5": 1.0,
+          "6": 0.6666666666666666,
+          "7": 0.8709677419354839
+        },
+        "n_seeds": 3
+      }
+    }
+  }
+}

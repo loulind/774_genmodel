@@ -1,0 +1,745 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Report: pbmc3k_labeled</title>
+<style>
+:root { --surface:#fcfcfb; --text:#0b0b0b; --text-2:#52514e; --rule:#e4e3df; --accent:#2a78d6; }
+@media (prefers-color-scheme: dark) { :root { --surface:#1a1a19; --text:#ffffff; --text-2:#c3c2b7; --rule:#3a3a37; --accent:#3987e5; } }
+body { background:var(--surface); color:var(--text); font:15px/1.55 -apple-system, "Segoe UI", sans-serif;
+       max-width:1100px; margin:0 auto; padding:24px 16px; }
+h1,h2,h3 { line-height:1.25; } h2 { border-bottom:1px solid var(--rule); padding-bottom:4px; margin-top:2em; }
+table { border-collapse:collapse; font-size:12.5px; display:block; overflow-x:auto; margin:8px 0; }
+th,td { border-bottom:1px solid var(--rule); padding:4px 8px; text-align:left; vertical-align:top; }
+th { color:var(--text-2); font-weight:600; }
+img { max-width:100%; height:auto; background:#fcfcfb; border-radius:4px; }
+code { font-size:12.5px; } em { color:var(--text-2); } a { color:var(--accent); }
+</style></head><body><h1>Generative modeling report: pbmc3k_labeled</h1>
+<p><em>Objective:</em> Generate realistic synthetic cells for rare cell types to support downstream cell-type classification.<br />
+<em>Run:</em> 2026-10-05T22:21:32 on mps (Apple GPU (MPS) on arm64); full mode; seed 774; plan source <strong>llm</strong>; narrative by LLM (claude-opus-5-5); total time 3.9 min.</p>
+<h2>1. Executive summary</h2>
+<p>The objective was to generate realistic synthetic cells for the two rare classes in <code>pbmc3k_labeled</code> (2,638 cells × 32,738 genes; 8 classes; imbalance ratio 76.3): <strong>Dendritic cells</strong> (37 cells) and <strong>Megakaryocytes</strong> (15 cells). The goal was to support cell-type classification. The agent trained a conditional negative-binomial VAE (<code>nb_vae</code>) on the top 2,000 highly variable genes as the primary model, with a size-matched Gaussian VAE on log-normalised data as the comparison. It added 295 synthetic cells (205 Dendritic cells, 90 Megakaryocytes) to the training set. Overall fidelity of <code>nb_vae</code> is close to the real-holdout reference: Fréchet distance 12.4 vs 11.0, MMD 0.0088 vs 0.0048, coverage 0.967 vs 0.998, zero fraction 0.9255 vs 0.9257. No memorisation was flagged (DCR ratio 1.04, 0 exact copies). On the primary metric, target-class recall rose from 0.690 to 1.000 (gain +0.310, 95% CI [0.000, 0.688], P(gain&gt;0) = 0.94). Against a class-weighted classifier the gain was +0.238 (CI [0.000, 0.600]). <strong>Bottom line:</strong> the synthetic cells look realistic in aggregate, but the classification benefit is not established. Both intervals reach zero, and the gain amounts to roughly 3 test cells (about 2 against class weighting). Augmentation should be treated as optional until it is re-tested on more real rare-class cells.</p>
+<h2>2. Data and objective</h2>
+<p><strong>What the profile showed that drove the decisions:</strong></p>
+<ul>
+<li><strong>Modality: UMI-like counts.</strong> Values are non-negative integers in [0, 419], 97.4% zeros, stored sparse. Median library size is 2,214 (mean 2,373). Library size was used as an offset in the count model.</li>
+<li><strong>Overdispersion without zero inflation.</strong> Among the 3,857 genes detected in ≥5% of cells:</li>
+<li>96.7% are overdispersed (median variance/mean 1.51).</li>
+<li>Observed zeros (0.818) sit between the Poisson expectation (0.794) and the NB expectation (0.847), so excess zeros vs NB are −0.029.</li>
+<li>ZINB is preferred by AIC for only 2.3% of genes, with a median fitted zero-inflation π of 0.016.</li>
+<li>Together these pointed to an NB likelihood rather than Poisson or ZINB.</li>
+<li><strong>High dimension relative to sample size.</strong> p = 32,738 against n = 2,638 (n/p = 0.081). Intrinsic dimension is about 170, and 200 PCs are needed for 90% of variance. This motivated restricting to 2,000 HVGs and using a small network.</li>
+<li><strong>Severe imbalance.</strong> Class counts range from 1,144 (CD4 T cells) down to 37 (Dendritic cells) and 15 (Megakaryocytes, 0.57% of cells). After the stratified 70/10/20 split (train 1,846 / val 264 / test 528, seed 774):</li>
+<li>26 Dendritic cells and 10 Megakaryocytes were left for training.</li>
+<li>11 and 5 were left in the combined val+test holdout used for generative metrics.</li>
+<li>Per-class recalls of 0.714 and 0.667 imply about 7 and 3 cells in the test set used for classification.</li>
+<li><strong>Clean input.</strong> No missing values, no duplicates or near-duplicates, no predefined splits.</li>
+</ul>
+<p>The objective was parsed heuristically as <code>class_balancing</code> (trigger word 'rare'), with <code>generation</code> as a secondary task and classification as the downstream task. Dendritic cells and Megakaryocytes were the target classes.</p>
+<table>
+<thead>
+<tr>
+<th>profile</th>
+<th>value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>modality</td>
+<td>counts</td>
+</tr>
+<tr>
+<td>n samples</td>
+<td>2638</td>
+</tr>
+<tr>
+<td>n features</td>
+<td>32738</td>
+</tr>
+<tr>
+<td>feature types (cont/disc/bin/cat)</td>
+<td>32738/0/0/0</td>
+</tr>
+<tr>
+<td>classes</td>
+<td>8 (imbalance 76.3, smallest 'Megakaryocytes' n=15)</td>
+</tr>
+<tr>
+<td>missing cells</td>
+<td>0.0%</td>
+</tr>
+<tr>
+<td>zero fraction</td>
+<td>97.4%</td>
+</tr>
+<tr>
+<td>PCA components for 90% variance</td>
+<td>200</td>
+</tr>
+<tr>
+<td>near-duplicate fraction</td>
+<td>0.0</td>
+</tr>
+<tr>
+<td>predefined splits</td>
+<td>None</td>
+</tr>
+<tr>
+<td>NB vs ZINB (genes preferring ZINB; median pi)</td>
+<td>0.02; 0.016</td>
+</tr>
+</tbody>
+</table>
+<h2>3. How the agent decided</h2>
+<p><strong>Whether to use a generative model.</strong> The agent chose to use one: the objective explicitly asks for synthetic cells, and a conditional model trained on all classes can share structure with the rare ones, which the plan judged a better basis than interpolating among 15–37 cells. The alternative 'class weighting only' was rejected as a replacement but kept as a baseline that augmentation must beat. The plan flagged Megakaryocytes (about 10 training cells) as being at the memorisation limit.</p>
+<p><strong>Preprocessing.</strong> The agent modelled the top 2,000 HVGs (the standard Scanpy/Seurat choice). Using all 32,738 genes was rejected because p ≫ n and most genes are near-silent.</p>
+<p><strong>Likelihood and primary model.</strong> The primary model is <code>nb_vae</code>: a scVI-style conditional VAE with an NB likelihood and library-size offset.
+- <strong>ZINB</strong> was rejected (see the zero-inflation statistics above).
+- <strong>Poisson</strong> was rejected because it ignores overdispersion.
+- <strong>Other architectures rejected:</strong>
+  - <strong>WGAN-GP:</strong> no likelihood to monitor, and mode collapse could erase classes of about 10 cells.
+  - <strong>MLP diffusion (DDPM):</strong> models transformed continuous values rather than counts, and needs more data than a few thousand cells.
+  - <strong>Normalising flows:</strong> p far exceeds the roughly 200-d limit for full-rank flows.</p>
+<p><strong>Comparison model.</strong> A Gaussian VAE on log-normalised HVGs, with identical architecture (latent 10, hidden 128, 1 layer, β = 1, weight decay 1e-5). Because the architectures match, the comparison isolates the effect of the likelihood.</p>
+<p><strong>Hyperparameters.</strong> Settings followed rules of thumb: batch 128 (≈ n/20), latent dimension 10 (scVI default), max epochs 400 for <code>nb_vae</code>, learning rate 1e-3. The LLM planner made two changes to the rule-based proposal:
+- It pinned β = 1.0 and weight decay 1e-5 for <code>nb_vae</code>, to limit overfitting to the 10 Megakaryocyte training cells.
+- It pinned <code>n_layers = 1</code> for the comparison VAE, to keep the two models matched.</p>
+<p>A larger network (hidden ≥ 256, 2 layers) was rejected because of the memorisation risk at n/p = 0.081.</p>
+<p><strong>Sampling.</strong> Each target class was raised to min(median size of the other classes ≈ 230, 10× its real count). The rationale was that beyond this, synthetic points are smoothed copies of a few real cells rather than new evidence. The result was 205 synthetic Dendritic cells and 90 synthetic Megakaryocytes. The Megakaryocyte figure is consistent with the 10× cap (90 synthetic + 10 real = 100).</p>
+<p><strong>Evaluation.</strong> Fidelity, diversity and memorisation were measured in PCA(50) of log-normalised HVG expression, fitted on real training data only. Inception-type features were rejected as mis-specified for these data. The primary metric is <code>target_class_recall_gain</code>, with real-only and class-weighted classifiers as baselines. AUPRC was added as a threshold-free check because recall on about 3 test cells moves in 33-point steps. However, <strong>no AUPRC values appear in the evaluation record</strong>, so that check cannot be reported. Two alternatives were rejected:
+- Macro-F1 as primary, because averaging over 6 well-populated classes dilutes the rare-class signal.
+- Raising the test fraction to 0.3, because it would add about 1 Megakaryocyte to the test set while removing about 1.5 of the 10 training cells.</p>
+<p>Full decision log: <code>decision_log.json</code>. Summary:</p>
+<table>
+<thead>
+<tr>
+<th>step</th>
+<th>decision</th>
+<th>chosen</th>
+<th>source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>system</td>
+<td>compute</td>
+<td>mps, full mode</td>
+<td>system</td>
+</tr>
+<tr>
+<td>profile</td>
+<td>data modality</td>
+<td>counts</td>
+<td>system</td>
+</tr>
+<tr>
+<td>objective</td>
+<td>task type</td>
+<td>class_balancing</td>
+<td>heuristic</td>
+</tr>
+<tr>
+<td>warrant</td>
+<td>use a generative model?</td>
+<td>yes</td>
+<td>heuristic</td>
+</tr>
+<tr>
+<td>preprocessing</td>
+<td>genes modelled</td>
+<td>top 2000 highly variable genes</td>
+<td>heuristic</td>
+</tr>
+<tr>
+<td>model</td>
+<td>count likelihood</td>
+<td>NB</td>
+<td>heuristic</td>
+</tr>
+<tr>
+<td>model</td>
+<td>primary model</td>
+<td>nb_vae</td>
+<td>heuristic</td>
+</tr>
+<tr>
+<td>model</td>
+<td>comparison model</td>
+<td>vae</td>
+<td>heuristic</td>
+</tr>
+<tr>
+<td>hyperparameters</td>
+<td>nb_vae (primary)</td>
+<td>batch_size=128, latent_dim=10, hidden_dim=128, n_layers=1, max_epochs=</td>
+<td>heuristic</td>
+</tr>
+<tr>
+<td>hyperparameters</td>
+<td>vae (comparison)</td>
+<td>batch_size=128, latent_dim=10, hidden_dim=128, beta=1.0, lr=0.001, wei</td>
+<td>heuristic</td>
+</tr>
+<tr>
+<td>sampling</td>
+<td>how many samples, of what</td>
+<td>rebalance_targets</td>
+<td>heuristic</td>
+</tr>
+<tr>
+<td>evaluation</td>
+<td>evaluation criteria</td>
+<td>precision_recall, density_coverage, frechet_distance, mmd, memorizatio</td>
+<td>heuristic</td>
+</tr>
+<tr>
+<td>warrant</td>
+<td>Adopt generative augmentation, with an explicit caveat for M</td>
+<td>use_generative_model = true</td>
+<td>llm</td>
+</tr>
+<tr>
+<td>hyperparameters</td>
+<td>Set beta and weight_decay explicitly for nb_vae, and n_layer</td>
+<td>nb_vae: beta=1.0, weight_decay=1e-5; vae: n_layers=1</td>
+<td>llm</td>
+</tr>
+<tr>
+<td>evaluation</td>
+<td>Add AUPRC as a supporting utility metric; keep target_class_</td>
+<td>metrics += auprc</td>
+<td>llm</td>
+</tr>
+<tr>
+<td>planner</td>
+<td>planner used</td>
+<td>llm</td>
+<td>llm</td>
+</tr>
+<tr>
+<td>preprocessing</td>
+<td>data split</td>
+<td>train 1846 / val 264 / test 528</td>
+<td>system</td>
+</tr>
+<tr>
+<td>evaluation</td>
+<td>feature space</td>
+<td>PCA(50) of log-normalised expression of 2000 highly variable genes</td>
+<td>system</td>
+</tr>
+<tr>
+<td>critic</td>
+<td>revise the plan?</td>
+<td>none</td>
+<td>critic</td>
+</tr>
+<tr>
+<td>recommendation</td>
+<td>verdict</td>
+<td>No reliable effect of augmentation on target-class recall: +0.310 (95%</td>
+<td>system</td>
+</tr>
+</tbody>
+</table>
+<h2>4. Models and training</h2>
+<table>
+<thead>
+<tr>
+<th>model</th>
+<th>role</th>
+<th>representation</th>
+<th>conditional</th>
+<th>parameters</th>
+<th>epochs</th>
+<th>time (s)</th>
+<th>stopped</th>
+<th>hyperparameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nb_vae</td>
+<td>primary</td>
+<td>counts_hvg</td>
+<td>True</td>
+<td>797,188</td>
+<td>158</td>
+<td>10.2</td>
+<td>early_stop</td>
+<td>latent_dim=10, hidden_dim=128, n_layers=1, beta=1.0, lr=0.001, batch_size=128, max_epochs=400, weight_decay=1e-05</td>
+</tr>
+<tr>
+<td>vae</td>
+<td>comparison</td>
+<td>lognorm_hvg</td>
+<td>True</td>
+<td>522,164</td>
+<td>258</td>
+<td>19.0</td>
+<td>early_stop</td>
+<td>latent_dim=10, hidden_dim=128, n_layers=1, beta=1.0, lr=0.001, batch_size=128, max_epochs=2000, weight_decay=1e-05</td>
+</tr>
+</tbody>
+</table>
+<p><img alt="training curves" src="figures/training_curves.png" /></p>
+<h2>5. Evaluation</h2>
+<p><strong>Training.</strong> Both models stopped early and well within the caps.
+- <code>nb_vae</code>: 797,188 parameters; 158 epochs, best at epoch 133; 10.2 s. Final train loss 479.9 vs best validation loss 491.9, a small gap. Median NB inverse dispersion θ = 0.90.
+- Gaussian VAE: 522,164 parameters; 258 epochs, best at 233; 19.0 s.
+- The two models' losses use different likelihoods and are not comparable.</p>
+<p><strong>Overall fidelity and diversity</strong> (PCA-50 space; 792 synthetic vs 792 real holdout cells; reference = real train vs real holdout):</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>nb_vae</th>
+<th>Gaussian VAE</th>
+<th>Real-holdout reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fréchet distance</td>
+<td>12.40</td>
+<td>24.62</td>
+<td>10.98</td>
+</tr>
+<tr>
+<td>MMD</td>
+<td>0.0088</td>
+<td>0.0207</td>
+<td>0.0048</td>
+</tr>
+<tr>
+<td>Mean marginal KS</td>
+<td>0.047</td>
+<td>0.406</td>
+<td>0.027</td>
+</tr>
+<tr>
+<td>Correlation mean abs diff</td>
+<td>0.039</td>
+<td>0.043</td>
+<td>0.033</td>
+</tr>
+<tr>
+<td>Precision</td>
+<td>0.973</td>
+<td>0.914</td>
+<td>0.999</td>
+</tr>
+<tr>
+<td>Recall</td>
+<td>0.329</td>
+<td>0.307</td>
+<td>0.262</td>
+</tr>
+<tr>
+<td>Density</td>
+<td>4.27</td>
+<td>4.48</td>
+<td>6.27</td>
+</tr>
+<tr>
+<td>Coverage</td>
+<td>0.967</td>
+<td>0.858</td>
+<td>0.998</td>
+</tr>
+</tbody>
+</table>
+<p><code>nb_vae</code> is close to, but measurably worse than, the real-vs-real reference on every distributional metric. MMD is about 1.8× the reference, and Fréchet distance is 13% above it. It is roughly twice as close as the Gaussian VAE on Fréchet distance and MMD. The most striking difference is the mean marginal KS: 0.047 vs 0.406, which suggests the Gaussian model badly misrepresents per-component marginals.</p>
+<p>The k-NN recall metric is low for all three rows. The real-vs-real reference itself is only 0.262, so recall should be read relative to that reference rather than against 1. Density below the reference (4.27 vs 6.27) means synthetic cells sit somewhat less densely around real cells than real cells do.</p>
+<p><strong>Count-level marginals (nb_vae).</strong>
+- Zero fraction: 0.9255 synthetic vs 0.9257 real.
+- Gene-mean correlation 0.998; gene zero-fraction correlation 0.997.
+- Gene-variance correlation is weaker at 0.915.
+- Library-size KS is 0.073.</p>
+<p>Mean expression and sparsity are reproduced very well. Gene-level variance and library-size distributions are reproduced less exactly.</p>
+<p><strong>Target classes (per-class PRDC, k = 5; synthetic n matched to real-train n).</strong>
+- <strong>Dendritic cells</strong> (26 train / 11 holdout / 26 synthetic): <code>nb_vae</code> precision 0.92, recall 0.77, coverage 0.88, density 0.88. The Gaussian VAE reaches recall 0.92 but precision only 0.31, coverage 0.31 and density 0.12, meaning most of its Dendritic-cell samples fall outside the real Dendritic-cell manifold.
+- <strong>Megakaryocytes</strong> (10 train / 5 holdout / 10 synthetic): <code>nb_vae</code> precision 0.90 but recall 0.20, coverage 0.20 and density 0.28. Synthetic Megakaryocytes look plausible but probably cover only part of the class's real variation. Each of these values rests on 5 holdout and 10 synthetic cells: a coverage of 0.2 is 1 of 5 holdout cells. The Gaussian VAE is worse here (recall 0.0, coverage 0.1).</p>
+<p><strong>Memorisation.</strong>
+- Overall <code>nb_vae</code>: median distance-to-closest-record 12.44 for synthetic vs 12.01 for holdout (ratio 1.04); 0 exact copies; 1.6% too-close against the roughly 5% expected; Mann–Whitney p (synthetic closer) = 1.0. No flag.
+- Per class, the DCR ratios are 1.26 (Dendritic cells) and 2.16 (Megakaryocytes), with 0 too-close in each. Synthetic rare cells are therefore not copies of training cells.
+- For Megakaryocytes, a DCR ratio of 2.16 together with low coverage is consistent with samples that sit farther from the real cells than real holdout cells do. They are not copies, but the 10-cell sample cannot distinguish this from chance.</p>
+<p><strong>Utility</strong> (multinomial logistic regression on standardised PCA-50 features; 3 seeds; reported seed SD ≈ 0):</p>
+<table>
+<thead>
+<tr>
+<th>Classifier</th>
+<th>Macro-F1</th>
+<th>Balanced acc.</th>
+<th>Target recall</th>
+<th>DC recall</th>
+<th>Mk recall</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Real only</td>
+<td>0.911</td>
+<td>0.878</td>
+<td>0.690</td>
+<td>0.714</td>
+<td>0.667</td>
+</tr>
+<tr>
+<td>Class-weighted</td>
+<td>0.918</td>
+<td>0.896</td>
+<td>0.762</td>
+<td>0.857</td>
+<td>0.667</td>
+</tr>
+<tr>
+<td>+ nb_vae synthetic</td>
+<td>0.936</td>
+<td>0.951</td>
+<td>1.000</td>
+<td>1.000</td>
+<td>1.000</td>
+</tr>
+<tr>
+<td>+ Gaussian VAE synthetic</td>
+<td>0.917</td>
+<td>0.947</td>
+<td>1.000</td>
+<td>1.000</td>
+<td>1.000</td>
+</tr>
+</tbody>
+</table>
+<p>The gains with bootstrap intervals were:
+- <strong>Target recall gain</strong> (<code>nb_vae</code> vs real only): +0.310, 95% CI [0.000, 0.688], P(&gt;0) = 0.94.
+- <strong>Target recall gain vs class-weighted:</strong> +0.238, CI [0.000, 0.600], P(&gt;0) = 0.88.
+- <strong>Macro-F1 gain</strong> vs real only: +0.024, CI [−0.037, 0.136], P(&gt;0) = 0.75.
+- <strong>Macro-F1 gain vs class-weighted:</strong> +0.018, CI [−0.037, 0.130], P(&gt;0) = 0.70.</p>
+<p><strong>Reading this candidly:</strong>
+- With about 7 Dendritic-cell and about 3 Megakaryocyte test cells, the recall gain over real-only corresponds to about 2 more Dendritic cells and 1 more Megakaryocyte classified correctly. Over class weighting it is about 1 more of each.
+- All the target-recall intervals have a lower bound of exactly 0. Macro-F1 intervals include zero.
+- The rule-based verdict is therefore 'no reliable effect'. The direction is favourable (P(gain&gt;0) = 0.88–0.94), but the size is not established.
+- Augmentation slightly lowered recall for some common classes: CD14+ Monocytes 0.979 → 0.969, CD4 T 0.983 → 0.978, CD8 T 0.841 → 0.825. These shifts are small and may reflect single cells.
+- The Gaussian VAE gives an identical target-recall gain (+0.310) despite far worse fidelity. The utility benefit therefore does <strong>not</strong> discriminate between a realistic and an unrealistic generator. Plausibly, simply adding more labelled points in the target-class region shifts the linear classifier's decision boundary. Only the fidelity metrics separate the two models.</p>
+<p>Feature space: PCA(50) of log-normalised expression of 2000 highly variable genes. Real train n=1846; reference holdout = validation + test splits (both drawn IID by the agent), n=792; synthetic sets scored at the holdout's n.</p>
+<h3>Fidelity, diversity, memorization</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>precision</th>
+<th>recall</th>
+<th>density</th>
+<th>coverage</th>
+<th>frechet_distance</th>
+<th>mmd</th>
+<th>marginal_ks_mean</th>
+<th>correlation_mean_abs_diff</th>
+<th>dcr_ratio</th>
+<th>too_close_fraction</th>
+<th>mannwhitney_p_synth_closer</th>
+<th>memorization_flag</th>
+<th>n_synth_eval</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>real holdout, IID (reference)</td>
+<td>0.999</td>
+<td>0.262</td>
+<td>6.270</td>
+<td>0.998</td>
+<td>10.979</td>
+<td>0.005</td>
+<td>0.027</td>
+<td>0.033</td>
+<td>nan</td>
+<td>nan</td>
+<td>nan</td>
+<td>nan</td>
+<td>nan</td>
+</tr>
+<tr>
+<td>nb_vae</td>
+<td>0.973</td>
+<td>0.329</td>
+<td>4.267</td>
+<td>0.967</td>
+<td>12.398</td>
+<td>0.009</td>
+<td>0.047</td>
+<td>0.039</td>
+<td>1.035</td>
+<td>0.016</td>
+<td>1.000</td>
+<td>False</td>
+<td>792</td>
+</tr>
+<tr>
+<td>vae</td>
+<td>0.914</td>
+<td>0.307</td>
+<td>4.479</td>
+<td>0.858</td>
+<td>24.616</td>
+<td>0.021</td>
+<td>0.406</td>
+<td>0.043</td>
+<td>1.055</td>
+<td>0.000542</td>
+<td>1.000</td>
+<td>False</td>
+<td>792</td>
+</tr>
+</tbody>
+</table>
+<p>Downstream classifier: multinomial logistic regression (C=1, lbfgs) on standardised evaluation features (PCA(50) of log-normalised expression of 2000 highly variable genes).</p>
+<h3>Target classes</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>precision</th>
+<th>recall</th>
+<th>density</th>
+<th>coverage</th>
+<th>dcr_ratio</th>
+<th>too_close_fraction</th>
+<th>n_real_train</th>
+<th>n_real_holdout</th>
+<th>n_synth</th>
+<th>k_nn</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nb_vae: Dendritic cells</td>
+<td>0.923</td>
+<td>0.769</td>
+<td>0.877</td>
+<td>0.885</td>
+<td>1.262</td>
+<td>0.000</td>
+<td>26.000</td>
+<td>11.000</td>
+<td>26.000</td>
+<td>5.000</td>
+</tr>
+<tr>
+<td>nb_vae: Megakaryocytes</td>
+<td>0.900</td>
+<td>0.200</td>
+<td>0.280</td>
+<td>0.200</td>
+<td>2.163</td>
+<td>0.000</td>
+<td>10.000</td>
+<td>5.000</td>
+<td>10.000</td>
+<td>5.000</td>
+</tr>
+<tr>
+<td>vae: Dendritic cells</td>
+<td>0.308</td>
+<td>0.923</td>
+<td>0.115</td>
+<td>0.308</td>
+<td>1.841</td>
+<td>0.000</td>
+<td>26.000</td>
+<td>11.000</td>
+<td>26.000</td>
+<td>5.000</td>
+</tr>
+<tr>
+<td>vae: Megakaryocytes</td>
+<td>0.500</td>
+<td>0.000</td>
+<td>0.100</td>
+<td>0.100</td>
+<td>2.344</td>
+<td>0.000</td>
+<td>10.000</td>
+<td>5.000</td>
+<td>10.000</td>
+<td>5.000</td>
+</tr>
+</tbody>
+</table>
+<h3>Downstream utility (real test set)</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>macro_f1</th>
+<th>macro_f1_sd</th>
+<th>balanced_accuracy</th>
+<th>target_class_recall</th>
+<th>n_seeds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>real only</td>
+<td>0.911</td>
+<td>1.11e-16</td>
+<td>0.878</td>
+<td>0.690</td>
+<td>3.000</td>
+</tr>
+<tr>
+<td>real only, class-weighted</td>
+<td>0.918</td>
+<td>0.000</td>
+<td>0.896</td>
+<td>0.762</td>
+<td>3.000</td>
+</tr>
+<tr>
+<td>real + nb_vae</td>
+<td>0.936</td>
+<td>0.000</td>
+<td>0.951</td>
+<td>1.000</td>
+<td>3.000</td>
+</tr>
+<tr>
+<td>real + vae</td>
+<td>0.917</td>
+<td>0.000</td>
+<td>0.947</td>
+<td>1.000</td>
+<td>3.000</td>
+</tr>
+</tbody>
+</table>
+<p>Gains with paired-bootstrap 95% intervals:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>gain</th>
+<th>ci_low</th>
+<th>ci_high</th>
+<th>prob_positive</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nb_vae: augmented - real: macro-F1</td>
+<td>0.024</td>
+<td>-0.037</td>
+<td>0.136</td>
+<td>0.751</td>
+</tr>
+<tr>
+<td>nb_vae: augmented - real: target recall</td>
+<td>0.310</td>
+<td>0.000</td>
+<td>0.688</td>
+<td>0.938</td>
+</tr>
+<tr>
+<td>nb_vae: augmented - class-weighted: macro-F1</td>
+<td>0.018</td>
+<td>-0.037</td>
+<td>0.130</td>
+<td>0.695</td>
+</tr>
+<tr>
+<td>nb_vae: augmented - class-weighted: target recall</td>
+<td>0.238</td>
+<td>0.000</td>
+<td>0.600</td>
+<td>0.879</td>
+</tr>
+<tr>
+<td>vae: augmented - real: macro-F1</td>
+<td>0.006</td>
+<td>-0.080</td>
+<td>0.117</td>
+<td>0.599</td>
+</tr>
+<tr>
+<td>vae: augmented - real: target recall</td>
+<td>0.310</td>
+<td>0.000</td>
+<td>0.700</td>
+<td>0.950</td>
+</tr>
+<tr>
+<td>vae: augmented - class-weighted: macro-F1</td>
+<td>-0.000931</td>
+<td>-0.075</td>
+<td>0.103</td>
+<td>0.556</td>
+</tr>
+<tr>
+<td>vae: augmented - class-weighted: target recall</td>
+<td>0.238</td>
+<td>0.000</td>
+<td>0.600</td>
+<td>0.885</td>
+</tr>
+</tbody>
+</table>
+<p><img alt="Real vs synthetic in the evaluation feature space (PCA)" src="figures/embedding_real_vs_synthetic.png" />
+<em>Real vs synthetic in the evaluation feature space (PCA).</em></p>
+<p><img alt="Per-gene statistics, synthetic vs real" src="figures/gene_statistics.png" />
+<em>Per-gene statistics, synthetic vs real.</em></p>
+<p><img alt="Downstream classifier by training condition" src="figures/utility.png" />
+<em>Downstream classifier by training condition.</em></p>
+<h2>6. Critic and revision</h2>
+<p>The critic judged the run <strong>adequate</strong> and proposed <strong>no revision</strong> (<code>action = none</code>), so no revision ran (<code>revision.ran = false</code>). The selected model remains <code>nb_vae</code>.</p>
+<p><strong>Critic's reasoning:</strong>
+- <strong>Ceiling on the primary metric.</strong> Augmented target-class recall is already 1.000, so no revision could raise <code>target_class_recall_gain</code> above +0.310. Revisions are only kept if the primary metric improves, so retraining had no possible payoff on that metric.
+- <strong>Noise.</strong> With about 7 and 3 test cells in the target classes, any further change would be measured on noise.
+- <strong>Model choice.</strong> <code>nb_vae</code> clearly beats the Gaussian VAE on fidelity: Fréchet 12.4 vs 24.6, MMD 0.0088 vs 0.0207, marginal KS 0.047 vs 0.406, Dendritic-cell precision 0.92 vs 0.31. Both give the same primary gain, so there is no reason to switch.
+- <strong>Training health.</strong> Early stopping at epoch 133 of 158 (cap 400) and the small train/validation gap (480 vs 492) gave no sign of a hyperparameter problem.
+- <strong>Main weakness.</strong> The critic named Megakaryocyte coverage and recall (0.2) and density (0.28) as the main weakness, while noting the 5-cell holdout.</p>
+<p><strong>Alternatives the critic rejected:</strong>
+- Re-tuning <code>nb_vae</code> (lower β to 0.5, or a larger latent space) to improve Megakaryocyte coverage. Reasons: no possible primary-metric gain, a coverage estimate based on 5/10 cells, and higher memorisation risk with lower β.
+- Switching to the Gaussian VAE. Reasons: worse fidelity, Megakaryocyte recall 0.0, and macro-F1 −0.001 vs class weighting.
+- Switching to a ZINB VAE. Reasons: only 2.3% of genes prefer ZINB, and NB already matches the zero fraction.
+- Switching to diffusion on log-normalised PCA. Reasons: it would lose the count likelihood, carries higher memorisation risk, and the metric is already at ceiling.</p>
+<p><strong>Comment.</strong> The decision not to revise is defensible. However, the ceiling argument cuts both ways: because the primary metric saturated, it cannot tell better generators from worse ones. This run leaves the Megakaryocyte coverage weakness unresolved, not refuted. The critic's 'adequate' assessment should be read alongside the rule-based verdict that the gain is not statistically reliable. The critic itself recommended re-checking the gain on a larger or cross-validated split, because the CI lower bound sits at 0.</p>
+<h2>7. Recommended downstream use</h2>
+<ul>
+<li><strong>Treat augmentation as optional, not proven.</strong> The target-recall gain is +0.310 (95% CI [0.000, 0.688]) over real-only and +0.238 (CI [0.000.600]) over class weighting. If used, also keep the class-weighted classifier as a reference.</li>
+<li><strong>Use <code>nb_vae</code>, not the Gaussian VAE</strong>, as the source of synthetic cells. Both give the same utility gain, but <code>nb_vae</code> has much better fidelity (Fréchet 12.4 vs 24.6; Dendritic-cell precision 0.92 vs 0.31).</li>
+<li><strong>Use synthetic cells only to augment classifier training.</strong> Add them to the training fold only, and keep them labelled as synthetic (<code>is_synthetic</code> flag).</li>
+<li><strong>Keep within the sampling caps:</strong> at most 205 Dendritic cells and 90 Megakaryocytes from this run (≤ 10× real count). Larger amounts are smoothed copies of 26 and 10 real cells, not new information.</li>
+<li><strong>Re-validate before relying on the effect size.</strong> Use repeated stratified or cross-validated splits, and preferably an external labelled PBMC dataset with more Dendritic cells and Megakaryocytes, so that recall is not decided by about 3–7 test cells.</li>
+<li><strong>Add a simple oversampling baseline</strong> (random duplication or SMOTE in PCA space) to test whether the generator adds anything beyond resampling. The Gaussian VAE matching the gain suggests it may not.</li>
+<li><strong>Report AUPRC per target class</strong> in follow-up runs. It was planned but no values appear in this record.</li>
+<li><strong>Be most cautious with Megakaryocytes.</strong> Synthetic coverage was 0.2 on 5 holdout cells. Prefer class weighting or collecting more real cells if the classifier must generalise across Megakaryocyte variation.</li>
+<li><strong>Privacy:</strong> no memorisation signal (DCR ratio 1.04; 0 exact copies). That is not a formal guarantee, so formal privacy protection (e.g. differential privacy) is needed before any external release.</li>
+</ul>
+<h3>Do not use the generated data for</h3>
+<ul>
+<li><strong>Never use synthetic cells as test or validation data.</strong> All performance must be measured on held-out real cells.</li>
+<li><strong>Do not estimate biological or population quantities</strong> from synthetic cells: no differential expression, marker discovery, cell-type proportions, prevalence, or gene–gene correlation claims. The generator only reproduces what it saw, and gene-variance correlation was 0.915, not 1.</li>
+<li><strong>Do not characterise rare classes from the synthetic data.</strong> Synthetic Dendritic cells come from 26 real training cells and Megakaryocytes from 10. They cannot reveal new subtypes, states or heterogeneity. Megakaryocyte coverage was only 0.2.</li>
+<li><strong>Do not cite the +0.310 recall gain as an established effect.</strong> The 95% CI reaches 0 and the gain amounts to about 3 test cells.</li>
+<li><strong>Do not pool synthetic and real cells without provenance.</strong> Label synthetic records wherever they are stored or shared.</li>
+<li><strong>Do not transfer this generator</strong> to other datasets, batches, tissues or chemistries. It was trained on one PBMC sample of 2,638 cells and 2,000 HVGs.</li>
+<li><strong>Do not treat 'no memorisation flag' as a privacy guarantee.</strong></li>
+<li><strong>Do not use the generated cells for genes outside the 2,000 HVGs.</strong> The other 30,738 genes were not modelled.</li>
+</ul>
+<h2>8. Limitations</h2>
+<ul>
+<li><strong>Very small rare-class test sets.</strong> About 7 Dendritic cells and 3 Megakaryocytes decided the primary metric. Recall moves in steps of about 14 and 33 points, and every target-recall interval has a lower bound of 0.</li>
+<li><strong>Ceiling effect.</strong> Augmented target recall hit 1.000 for both generators, so the primary metric could not rank models or justify a revision.</li>
+<li><strong>The utility gain does not depend on generator quality.</strong> The Gaussian VAE (Fréchet 24.6, Dendritic-cell precision 0.31) gave the same +0.310. The benefit may come from oversampling per se. No random-duplication or SMOTE baseline was run to test this.</li>
+<li><strong>Planned AUPRC is missing</strong> from the evaluation record, so the threshold-free check was not delivered.</li>
+<li><strong>Rare-class fidelity rests on tiny samples:</strong> 11/26 and 5/10 holdout/synthetic cells for Dendritic cells and Megakaryocytes, with k = 5 nearest neighbours. Megakaryocyte coverage of 0.2 is 1 of 5 cells.</li>
+<li><strong>One split (seed 774)</strong> for the generator. The 3 classifier seeds gave SD ≈ 0, so the intervals reflect test-set bootstrap only, not variation in generator training or data splitting.</li>
+<li><strong>Evaluation space is limited.</strong> Metrics were computed in PCA(50) of log-normalised HVGs. The data need about 200 PCs for 90% of variance (intrinsic dimension ≈ 170), so fidelity in the remaining variance is unmeasured. Count-level checks cover only marginals.</li>
+<li><strong>Only a linear classifier</strong> (multinomial logistic regression) was tested. Results may differ for other classifiers.</li>
+<li><strong>One dataset, one run.</strong> No hyperparameter search was done beyond rule-based defaults plus two LLM adjustments. Training was short (10.2 s), and the results come from a single small public PBMC sample.</li>
+</ul>
+<h2>9. Reproducibility</h2>
+<ul>
+<li>Command: <code>/Users/loulindsley/Projects/774_genmodel/.venv/bin/genagent run --data data/pbmc3k_labeled.h5ad --objective Generate realistic synthetic cells for rare cell types to support downstream cell-type classification. --out outputs/generated_report_2</code></li>
+<li>Git commit: <code>54c6c60a4cb10a6c5b519a48106fdba0c690edc5</code>; Python 3.12.14; torch 2.14.1, numpy 2.2.6, scikit-learn 1.9.1, scanpy 1.12.4, pandas 3.0.6, claude-agent-sdk 0.2.163</li>
+<li>LLM: model claude-opus-5-5, 3 calls, $0.6849; responses cached under the run directory (<code>--replay</code> reproduces the run without LLM access).</li>
+<li>Files: <code>decision_log.json</code>, <code>plan.json</code>, <code>profile.json</code>, <code>evaluation.json</code>, <code>tables/*.csv</code>, <code>model_summary.json</code>, <code>recommendations.json</code>, <code>synthetic_sample/</code>, <code>run_manifest.json</code>.</li>
+</ul></body></html>

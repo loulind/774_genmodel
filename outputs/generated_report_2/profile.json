@@ -1,0 +1,81 @@
+{
+  "name": "pbmc3k_labeled",
+  "source": "data/pbmc3k_labeled.h5ad",
+  "container": "h5ad",
+  "modality": "counts",
+  "modality_evidence": "non-negative integers, 97% zeros, p=32738 (>= 100)",
+  "n_samples": 2638,
+  "n_features": 32738,
+  "n_encoded_features": 32738,
+  "n_over_p": 0.081,
+  "image_shape": null,
+  "n_continuous": 32738,
+  "n_discrete": 0,
+  "n_binary": 0,
+  "n_categorical": 0,
+  "categorical_cardinalities": {},
+  "value_min": 0.0,
+  "value_max": 419.0,
+  "is_integer_valued": true,
+  "is_nonnegative": true,
+  "zero_fraction": 0.974,
+  "is_sparse_storage": true,
+  "labels": {
+    "n_classes": 8,
+    "class_names": [
+      "B cells",
+      "CD14+ Monocytes",
+      "CD4 T cells",
+      "CD8 T cells",
+      "Dendritic cells",
+      "FCGR3A+ Monocytes",
+      "Megakaryocytes",
+      "NK cells"
+    ],
+    "class_counts": {
+      "B cells": 342,
+      "CD14+ Monocytes": 480,
+      "CD4 T cells": 1144,
+      "CD8 T cells": 316,
+      "Dendritic cells": 37,
+      "FCGR3A+ Monocytes": 150,
+      "Megakaryocytes": 15,
+      "NK cells": 154
+    },
+    "imbalance_ratio": 76.26666666666667,
+    "minority_class": "Megakaryocytes",
+    "minority_count": 15,
+    "minority_fraction": 0.005686125852918878
+  },
+  "missing": {
+    "overall_fraction": 0.0,
+    "n_features_with_missing": 0,
+    "max_feature_fraction": 0.0,
+    "rows_with_any_missing_fraction": 0.0
+  },
+  "counts": {
+    "mean_library_size": 2372.581787109375,
+    "median_library_size": 2214.0,
+    "fraction_overdispersed_features": 0.9673321234119783,
+    "median_dispersion_ratio": 1.5125033855438232,
+    "observed_zero_fraction": 0.8176648976497347,
+    "poisson_expected_zero_fraction": 0.7938492894172668,
+    "nb_expected_zero_fraction": 0.8466187715530396,
+    "excess_zeros_vs_nb": -0.02895387390330484,
+    "n_features_assessed": 3857,
+    "fraction_genes_zinb_preferred": 0.023333333333333334,
+    "median_zero_inflation_pi": 0.015634388277715704
+  },
+  "shape": {
+    "median_abs_skew": 10.18248991036305,
+    "fraction_heavily_skewed": 0.9625,
+    "fraction_multimodal": 1.0,
+    "median_excess_kurtosis": 106.29173142616622
+  },
+  "intrinsic_dimension": 170.14802591262176,
+  "pca_components_90": 200,
+  "duplicate_fraction": 0.0,
+  "near_duplicate_fraction": 0.0,
+  "predefined_splits": null,
+  "dense_memory_mb": 345.5
+}

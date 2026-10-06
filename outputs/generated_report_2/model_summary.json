@@ -1,0 +1,83 @@
+{
+  "training": {
+    "nb_vae": {
+      "model": "nb_vae",
+      "role": "primary",
+      "conditional": true,
+      "representation": "counts_hvg",
+      "hyperparameters": {
+        "latent_dim": 10,
+        "hidden_dim": 128,
+        "n_layers": 1,
+        "beta": 1.0,
+        "lr": 0.001,
+        "batch_size": 128,
+        "max_epochs": 400,
+        "weight_decay": 1e-05
+      },
+      "n_parameters": 797188,
+      "epochs_run": 158,
+      "seconds": 10.2,
+      "stopped_because": "early_stop",
+      "best_epoch": 133,
+      "best_val_loss": 491.87054443359375,
+      "final_train_loss": 479.94488525390625,
+      "kl_warmup_epochs": 50,
+      "median_inverse_dispersion_theta": 0.8969451189041138
+    },
+    "vae": {
+      "model": "vae",
+      "role": "comparison",
+      "conditional": true,
+      "representation": "lognorm_hvg",
+      "hyperparameters": {
+        "latent_dim": 10,
+        "hidden_dim": 128,
+        "n_layers": 1,
+        "beta": 1.0,
+        "lr": 0.001,
+        "batch_size": 128,
+        "max_epochs": 2000,
+        "weight_decay": 1e-05
+      },
+      "n_parameters": 522164,
+      "epochs_run": 258,
+      "seconds": 19.0,
+      "stopped_because": "early_stop",
+      "best_epoch": 233,
+      "best_val_loss": 988.6239013671875,
+      "final_train_loss": 892.8112487792969
+    }
+  },
+  "revision": {
+    "ran": false
+  },
+  "critique": {
+    "assessment": "The run is adequate for the objective. On the primary metric, nb_vae lifts target-class recall from 0.690 to 1.000 (gain +0.310, 95% CI [0.00, 0.69], P(gain>0)=0.94). Against the class-weighted baseline the gain is +0.238 (CI [0.00, 0.60], P=0.88). Macro-F1 also rises slightly, +0.024, but that CI [-0.037, 0.136] includes zero. Overall fidelity is close to the real-holdout reference: Fr\u00e9chet 12.4 vs 11.0, MMD 0.0088 vs 0.0048, marginal KS 0.047 vs 0.027, coverage 0.967 vs 0.998, precision 0.973 vs 0.999. Count marginals also match well: zero fraction 0.9255 vs 0.9257 and gene-mean correlation 0.998. No memorisation was flagged (DCR ratio 1.04, no exact copies, 1.6% too-close). The main weakness is Megakaryocytes: per-class coverage and recall are both 0.2 and density is 0.28, so the synthetic cells probably cover only part of that class. That estimate rests on just 5 holdout cells, though.",
+    "action": "none",
+    "target_model": "nb_vae",
+    "hyperparameter_changes": {},
+    "rationale": "The primary metric can't go higher. Augmented target-class recall is already 1.000, so no revision could raise target_class_recall_gain above +0.310, and a revision is only kept if the primary metric improves. Retraining would spend compute with no possible payoff on that metric. The intervals are also very wide because the target classes have only a handful of test cells: real-only recalls of 0.714 and 0.667 point to roughly 7 and 3 cells. Any further change would be measured on noise. nb_vae clearly beats the Gaussian VAE on fidelity (Fr\u00e9chet 12.4 vs 24.6, MMD 0.0088 vs 0.0207, marginal KS 0.047 vs 0.406, Dendritic-cell precision 0.92 vs 0.31). Both models give the same primary gain, so there is no reason to switch. Training stopped early and cleanly at epoch 133 of 158, well under the 400-epoch cap, and the gap between train loss (480) and validation loss (492) is small. Neither suggests a hyperparameter problem.",
+    "alternatives_rejected": [
+      {
+        "option": "retune nb_vae (e.g. lower beta to 0.5, or raise latent_dim) to improve Megakaryocyte coverage (0.2)",
+        "reason": "Target recall is already 1.000, so the primary metric can't improve and the revision would be thrown away. The Megakaryocyte coverage figure rests on 5 holdout and 10 training cells, which is too few to tell a real gap from chance. A lower beta also raises the memorisation risk for a 10-cell class."
+      },
+      {
+        "option": "switch to vae (comparison)",
+        "reason": "It gives the same primary gain (+0.310) but much worse fidelity: Fr\u00e9chet 24.6, marginal KS 0.41, Dendritic-cell precision 0.31 and Megakaryocyte recall 0.0. Its macro-F1 is no better than the class-weighted baseline (-0.001)."
+      },
+      {
+        "option": "switch to zinb_vae",
+        "reason": "The profile prefers ZINB for only 2.3% of genes, and NB already matches the zero fraction almost exactly (0.9255 vs 0.9257). The primary metric is also already at its maximum."
+      },
+      {
+        "option": "switch to ddpm_mlp on lognorm_pca",
+        "reason": "This would drop the count likelihood that is working well here. A diffusion model is also more likely to memorise a 10-cell class, and it cannot beat a primary metric that is already at its maximum."
+      }
+    ],
+    "expected_effect": "None; no revision is proposed. Target-class recall gain stays at +0.310, which is the most it can be, with nb_vae fidelity close to the real-holdout reference. Before relying on the size of the gain, re-check it on a larger or repeated (cross-validated) split, because the lower end of the CI sits at 0.",
+    "triggers": [],
+    "source": "llm"
+  }
+}

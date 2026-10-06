@@ -1,0 +1,18 @@
+{
+  "verdict": "No reliable effect of augmentation on target-class recall: +0.310 (95% CI +0.000 to +0.688); the interval includes zero.",
+  "uses": [
+    "Treat augmentation as optional: the evidence neither supports nor rules out a benefit. Re-test on a larger real test set before relying on it.",
+    "Synthetic oversampling outperforms class weighting by +0.238 (95% CI +0.000 to +0.600).",
+    "No memorization signal (DCR ratio 1.04, 1.6% too close vs ~5% expected); privacy still requires a formal guarantee (e.g. differential privacy) before external release."
+  ],
+  "warnings": [
+    "Never use synthetic samples as test or validation data: performance must be measured on held-out real data.",
+    "Do not estimate population quantities (prevalence, class proportions, effect sizes, differential-expression statistics) from synthetic samples; they reflect the generator, not new evidence.",
+    "Label synthetic records as synthetic wherever they are stored or shared; never pool them with real data in a way that hides their origin.",
+    "'Dendritic cells' synthetic samples derive from only 26 real training examples (and 11 held-out): use them only to stabilise classifier training, never to characterise the class.",
+    "'Megakaryocytes' synthetic samples derive from only 10 real training examples (and 5 held-out): use them only to stabilise classifier training, never to characterise the class."
+  ],
+  "primary_model": "nb_vae",
+  "primary_metric": "target_class_recall_gain",
+  "primary_metric_value": 0.30952380952380965
+}
