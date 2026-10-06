@@ -39,8 +39,19 @@ def recommend(plan: Plan, results: dict, profile) -> dict:
 
     if task in ("generation", "augmentation", "class_balancing"):
         u = gen.get("utility", {}).get("models", {}).get(primary, {})
-        key = "target_class_recall_gain" if task == "class_balancing" else "macro_f1_gain"
+        # The verdict is about the plan's own primary metric (the LLM may change it).
+        planned = plan.evaluation.primary_metric if plan.evaluation else None
+        key = planned if planned in ("macro_f1_gain", "target_class_recall_gain") else \
+            ("target_class_recall_gain" if task == "class_balancing" else "macro_f1_gain")
         g = u.get(key) or u.get("macro_f1_gain")
+        util_all = gen.get("utility", {})
+        if util_all.get("baseline_degenerate"):
+            bal = util_all["real_only"]["balanced_accuracy"]
+            verdict = (f"Utility inconclusive: the real-only baseline classifier is at chance level "
+                       f"(balanced accuracy {bal:.2f}), so augmentation gains cannot be interpreted.")
+            uses.append("Re-run the utility comparison with a working baseline classifier (longer "
+                        "training, class weighting) before using synthetic data for training.")
+            g = None
         if g:
             what = "target-class recall" if key == "target_class_recall_gain" else "macro-F1"
             span = f"{g['gain']:+.3f} (95% CI {g['ci_low']:+.3f} to {g['ci_high']:+.3f})"

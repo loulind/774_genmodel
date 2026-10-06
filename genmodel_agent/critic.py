@@ -130,6 +130,10 @@ def find_triggers(plan: Plan, results: dict) -> list[Trigger]:
                         f"higher is better)",
                 suggested_action="switch", suggested_target=o.name))
 
+    if gen.get("utility", {}).get("baseline_degenerate"):
+        triggers.append(Trigger(code="degenerate_baseline", model=primary.name,
+                                message="real-only baseline classifier is at chance level; "
+                                        "utility gains are not interpretable"))
     util = gen.get("utility", {}).get("models", {}).get(primary.name, {})
     g = util.get("macro_f1_gain")
     if g and g["ci_high"] < 0:

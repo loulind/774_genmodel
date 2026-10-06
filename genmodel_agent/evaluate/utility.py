@@ -105,6 +105,10 @@ def run_utility(space, real, synth_by_model: dict, n_classes: int, targets: list
     out = {"real_only": None, "models": {}, "classifier": classifier_description(space)}
     base = fit_predict(space, Xtr, ytr, Xv, yv, Xte, n_classes, seeds)
     out["real_only"] = summarise(base, yte, n_classes, targets)
+    # A baseline at chance level (e.g. a classifier that predicts one class) makes
+    # every "gain" uninterpretable; flag it so no verdict is built on it.
+    chance = 1.0 / max(n_classes, 1)
+    out["baseline_degenerate"] = bool(out["real_only"]["balanced_accuracy"] <= chance + 0.05)
     macro = lambda y, p: f1_score(y, p, labels=list(range(n_classes)), average="macro",
                                   zero_division=0)
     trec = lambda y, p: _target_recall(y, p, targets)
