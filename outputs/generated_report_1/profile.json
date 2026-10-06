@@ -1,0 +1,79 @@
+{
+  "name": "pathmnist",
+  "source": "data/pathmnist.npz",
+  "container": "npz",
+  "modality": "image",
+  "modality_evidence": "rank-4 array [28, 28, 3] (H, W, C)",
+  "n_samples": 107180,
+  "n_features": 2352,
+  "n_encoded_features": 2352,
+  "n_over_p": 45.57,
+  "image_shape": [
+    28,
+    28,
+    3
+  ],
+  "n_continuous": 2352,
+  "n_discrete": 0,
+  "n_binary": 0,
+  "n_categorical": 0,
+  "categorical_cardinalities": {},
+  "value_min": 0.0,
+  "value_max": 255.0,
+  "is_integer_valued": true,
+  "is_nonnegative": true,
+  "zero_fraction": 0.0002,
+  "is_sparse_storage": false,
+  "labels": {
+    "n_classes": 9,
+    "class_names": [
+      "adipose",
+      "background",
+      "debris",
+      "lymphocytes",
+      "mucus",
+      "smooth muscle",
+      "normal colon mucosa",
+      "cancer-associated stroma",
+      "colorectal adenocarcinoma epithelium"
+    ],
+    "class_counts": {
+      "adipose": 11745,
+      "background": 11413,
+      "debris": 11851,
+      "lymphocytes": 12191,
+      "mucus": 9931,
+      "smooth muscle": 14128,
+      "normal colon mucosa": 9504,
+      "cancer-associated stroma": 10867,
+      "colorectal adenocarcinoma epithelium": 15550
+    },
+    "imbalance_ratio": 1.6361531986531987,
+    "minority_class": "normal colon mucosa",
+    "minority_count": 9504,
+    "minority_fraction": 0.08867325993655532
+  },
+  "missing": {
+    "overall_fraction": 0.0,
+    "n_features_with_missing": 0,
+    "max_feature_fraction": 0.0,
+    "rows_with_any_missing_fraction": 0.0
+  },
+  "counts": null,
+  "shape": {
+    "median_abs_skew": 0.3533415973370161,
+    "fraction_heavily_skewed": 0.0,
+    "fraction_multimodal": 0.0,
+    "median_excess_kurtosis": -0.22943334120643977
+  },
+  "intrinsic_dimension": 50.43732770045479,
+  "pca_components_90": 154,
+  "duplicate_fraction": 0.0,
+  "near_duplicate_fraction": 0.05,
+  "predefined_splits": {
+    "train": 89996,
+    "val": 10004,
+    "test": 7180
+  },
+  "dense_memory_mb": 1008.3
+}

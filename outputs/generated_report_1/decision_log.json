@@ -1,0 +1,366 @@
+[
+  {
+    "step": "system",
+    "decision": "compute",
+    "chosen": "mps, full mode",
+    "rationale": "Detected Apple GPU (MPS) on arm64; per-model training caps 1500s (images) / 480s (other); seed 774.",
+    "alternatives_rejected": [],
+    "evidence": {
+      "device": "mps",
+      "device_name": "Apple GPU (MPS) on arm64",
+      "cpu": "arm",
+      "n_cpu": 10,
+      "memory_gb": 17.2,
+      "torch_version": "2.14.1"
+    },
+    "source": "system"
+  },
+  {
+    "step": "profile",
+    "decision": "data modality",
+    "chosen": "image",
+    "rationale": "rank-4 array [28, 28, 3] (H, W, C)",
+    "alternatives_rejected": [],
+    "evidence": {
+      "n": 107180,
+      "p": 2352,
+      "brief": "image, n=107,180, p=2,352, 9 classes (imb 1.6)"
+    },
+    "source": "system"
+  },
+  {
+    "step": "objective",
+    "decision": "task type",
+    "chosen": "augmentation",
+    "rationale": "Matched phrases: {'augmentation': ['augmenting', 'small labelled', 'improves a downstream classifier'], 'generation': ['generate', 'synthetic', 'synthetic']}.",
+    "alternatives_rejected": [
+      {
+        "option": "generation",
+        "reason": "lower precedence"
+      }
+    ],
+    "evidence": {
+      "conditional": true,
+      "label_budget": 0.05,
+      "target_classes": [],
+      "wants_tstr": true
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "warrant",
+    "decision": "use a generative model?",
+    "chosen": "yes",
+    "rationale": "Objective 'augmentation' requires new samples and the data support it (image, n=107,180, p=2,352, 9 classes (imb 1.6)).",
+    "alternatives_rejected": [
+      {
+        "option": "no generative model",
+        "reason": "objective explicitly needs synthetic samples; utility against a real-only baseline will test whether they help"
+      }
+    ],
+    "evidence": {
+      "modality": "image",
+      "n_train_est": 4499,
+      "p_encoded": 2352,
+      "task": "augmentation"
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "preprocessing",
+    "decision": "labelled training subset",
+    "chosen": "5.0% stratified subsample of train",
+    "rationale": "The objective states that only this share of labels is available; the generator and every classifier see only this subset.",
+    "alternatives_rejected": [],
+    "evidence": {
+      "label_budget": 0.05,
+      "n_train_est": 4499
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "model",
+    "decision": "primary model",
+    "chosen": "ddpm_unet",
+    "rationale": "~4499 training images is enough for a small DDPM, which gives the best sample fidelity and diversity of the library; classifier-free guidance conditions it on class.",
+    "alternatives_rejected": [
+      {
+        "option": "wgan_gp",
+        "reason": "adversarial training is unstable at this scale and mode collapse would hit minority classes first"
+      },
+      {
+        "option": "realnvp / maf",
+        "reason": "pixel-space flows (p=2352) need deep multi-scale architectures beyond the budget"
+      }
+    ],
+    "evidence": {
+      "modality": "image",
+      "n_train_est": 4499,
+      "p_encoded": 2352,
+      "small_image_threshold": 2000
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "model",
+    "decision": "comparison model",
+    "chosen": "vae",
+    "rationale": "Conditional VAE: cheap, stable comparison; typically blurrier samples.",
+    "alternatives_rejected": [],
+    "evidence": {
+      "modality": "image",
+      "n_train_est": 4499,
+      "p_encoded": 2352,
+      "small_image_threshold": 2000
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "hyperparameters",
+    "decision": "ddpm_unet (primary)",
+    "chosen": "batch_size=128, base_channels=32, timesteps=1000, sample_steps=100, guidance_scale=2.0, p_uncond=0.1, lr=0.0002, max_epochs=2000",
+    "rationale": "batch_size=128 (more updates per second within the time cap); base_channels=32 (device mps: maximise updates in budget); v-prediction (well conditioned at high noise); T=1000 training steps, 100 strided sampling steps (cost/quality trade-off); guidance 2.0 with 10% label dropout (classifier-free guidance). Training capped at 1500s wall-clock.",
+    "alternatives_rejected": [],
+    "evidence": {
+      "n_train_est": 4499,
+      "pca_components_90": 154,
+      "train_seconds": 1500.0
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "hyperparameters",
+    "decision": "vae (comparison)",
+    "chosen": "batch_size=256, latent_dim=32, hidden_dim=256, beta=1.0, lr=0.001, weight_decay=0.0, max_epochs=2000",
+    "rationale": "batch_size=256 (~n/20, power of two in [32, 256]); latent_dim=32 (~PCA-90% components 154/4); hidden_dim=256; weight decay only when n<2000. Training capped at 750s wall-clock.",
+    "alternatives_rejected": [],
+    "evidence": {
+      "n_train_est": 4499,
+      "pca_components_90": 154,
+      "train_seconds": 750.0
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "sampling",
+    "decision": "how many samples, of what",
+    "chosen": "augment_per_class",
+    "rationale": "1:1 synthetic-to-real per class; larger ratios let generator bias dominate the training distribution. Evaluation sample n=4499.",
+    "alternatives_rejected": [],
+    "evidence": {
+      "n_per_class": {
+        "adipose": 493,
+        "background": 479,
+        "debris": 497,
+        "lymphocytes": 511,
+        "mucus": 416,
+        "smooth muscle": 593,
+        "normal colon mucosa": 398,
+        "cancer-associated stroma": 456,
+        "colorectal adenocarcinoma epithelium": 652
+      }
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "evaluation",
+    "decision": "evaluation criteria",
+    "chosen": "precision_recall, density_coverage, frechet_distance, mmd, memorization, utility_augmented, utility_tstr",
+    "rationale": "Fidelity, diversity and memorization measured in domain_cnn_features (a domain-appropriate space: Inception features would be mis-specified for these data); utility via a downstream classifier. Primary metric 'macro_f1_gain' is the quantity the objective asks to improve.",
+    "alternatives_rejected": [
+      {
+        "option": "Inception-based FID",
+        "reason": "ImageNet features do not describe this domain"
+      }
+    ],
+    "evidence": {
+      "primary_metric": "macro_f1_gain"
+    },
+    "source": "heuristic"
+  },
+  {
+    "step": "hyperparameters",
+    "decision": "Lower the DDPM classifier-free guidance scale",
+    "chosen": "guidance_scale=1.5 (proposal 2.0); other DDPM settings kept, weight_decay=0.0 stated explicitly",
+    "rationale": "The objective asks about TSTR transfer as well as augmentation gain. A classifier trained only on synthetic data needs samples that cover each class's real variation, not just the most typical examples. Higher guidance trades recall/coverage for precision, and 2.0 is already strong for a model trained on only 398-652 images per class. With 1.5, the conditioning stays clear while more of each class is covered. precision_recall and density_coverage will show this trade-off directly. Batch size 128 gives about 35 updates per epoch on about 4,500 images, which works out to many thousands of updates within 1,500 s on MPS. That is reasonable for base_channels=32 at 28x28.",
+    "alternatives_rejected": [
+      {
+        "option": "guidance_scale=2.0-3.0",
+        "reason": "Likely mode-seeking: high precision but low coverage, which hurts TSTR and adds little augmentation diversity."
+      },
+      {
+        "option": "guidance_scale=0",
+        "reason": "Class fidelity may be weak with only about 400-650 images per class; mislabelled-looking synthetic samples would corrupt augmentation."
+      },
+      {
+        "option": "base_channels=64",
+        "reason": "About 4x the cost per step on MPS, so fewer updates fit in 1,500 s. With n of about 4,500, optimiser steps matter more than capacity."
+      }
+    ],
+    "evidence": {},
+    "source": "llm"
+  },
+  {
+    "step": "hyperparameters",
+    "decision": "Resize the VAE latent and soften the KL weight",
+    "chosen": "latent_dim=64, beta=0.5, batch_size=128, n_layers=3 (proposal latent_dim=32, beta=1.0, batch_size=256)",
+    "rationale": "The profile's intrinsic dimension is about 50.4, and 154 PCA components are needed for 90% variance. A 32-dimensional latent sits below the estimated intrinsic dimension, so it would under-represent texture. 64 is the nearest round size above it. Gaussian-likelihood VAEs on pixels are known to blur, and beta=0.5 puts more weight on reconstruction, which sharpens samples while keeping a usable prior. Batch 128 doubles the number of updates within the 750 s cap for n of about 4,500.",
+    "alternatives_rejected": [
+      {
+        "option": "latent_dim=32, beta=1.0",
+        "reason": "Below the intrinsic dimension (about 50), and a full KL weight gives the blurriest samples. That would make the comparison uninformative."
+      },
+      {
+        "option": "beta=0.1",
+        "reason": "The aggregate posterior drifts away from the prior, so prior samples become poor."
+      }
+    ],
+    "evidence": {},
+    "source": "llm"
+  },
+  {
+    "step": "model",
+    "decision": "Do not add a third model (wgan_gp)",
+    "chosen": "Two models: ddpm_unet (primary) and vae (comparison), 2,250 s total out of 3,000 s",
+    "rationale": "Only 750 s would remain for a third model. A conditional WGAN-GP trained on about 4,500 images at n_critic around 5 would get few generator updates in that time, and GANs on small labelled sets are prone to mode collapse and discriminator overfitting. A half-trained GAN would confound the comparison more than it would inform it.",
+    "alternatives_rejected": [
+      {
+        "option": "wgan_gp with 750 s",
+        "reason": "Too few generator updates; unstable on small n; the result would be dominated by the training budget, not by the model family."
+      }
+    ],
+    "evidence": {},
+    "source": "llm"
+  },
+  {
+    "step": "sampling",
+    "decision": "Keep the 1:1 per-class augmentation ratio, which follows the class proportions",
+    "chosen": "augment_per_class, n_total=4499 (same as proposal)",
+    "rationale": "Imbalance is mild (1.64), so rebalancing is not needed. A 1:1 ratio keeps the real data dominant, and the same 4,499-sample synthetic set gives a TSTR training set the same size as the real labelled subset. That makes TRTR vs TSTR a fair comparison. This is well under the 10,000-sample cap.",
+    "alternatives_rejected": [
+      {
+        "option": "2:1 synthetic:real (about 9,000)",
+        "reason": "Generator bias would dominate the augmented training distribution. It also breaks the equal-n TSTR comparison."
+      }
+    ],
+    "evidence": {},
+    "source": "llm"
+  },
+  {
+    "step": "evaluation",
+    "decision": "Add per-class recall; make utility metrics central; keep macro_f1_gain as primary",
+    "chosen": "Add per_class_recall; primary=macro_f1_gain; baseline real_only_classifier trained on the same 5% subset; report on the predefined test split (7,180) over several classifier seeds",
+    "rationale": "A macro-averaged gain can hide classes that synthetic data harms. Per-class recall across all 9 classes shows where augmentation helps or hurts. With about 400-650 real images per class, gains may be small, so results should be repeated over classifier seeds and reported with intervals. Memorisation (nearest-neighbour distance to the training subset, compared with the train-to-test distance) is required because 5% of the data are near-duplicates. Without that comparison, memorised copies could inflate both fidelity scores and TSTR. Fidelity metrics stay in domain CNN features.",
+    "alternatives_rejected": [
+      {
+        "option": "frechet_distance as primary",
+        "reason": "It measures distributional fidelity, not the downstream improvement the objective asks about."
+      },
+      {
+        "option": "utility_tstr as primary",
+        "reason": "It answers the secondary question; the main question is the augmentation gain."
+      }
+    ],
+    "evidence": {},
+    "source": "llm"
+  },
+  {
+    "step": "preprocessing",
+    "decision": "Generator and classifiers see only the 5% stratified labelled subset; the validation split is used only for early stopping",
+    "chosen": "5% stratified subsample of the predefined train split (about 4,500); validation split (10,004) only for early stopping and checkpoint selection; test split (7,180) for final reporting",
+    "rationale": "This keeps the label-scarce setting the objective describes. Using the full labelled validation set for tuning would leak extra label information. The unlabelled 95% could be used to pretrain an unconditional generator, but that is outside the plan structure and the stated objective, so it is noted as a follow-up only.",
+    "alternatives_rejected": [
+      {
+        "option": "Semi-supervised generator pretraining on the unlabelled 95%",
+        "reason": "Not expressible in this plan schema and changes the question being asked; worth a follow-up study."
+      }
+    ],
+    "evidence": {},
+    "source": "llm"
+  },
+  {
+    "step": "planner",
+    "decision": "planner used",
+    "chosen": "llm",
+    "rationale": "LLM revised the rule-based proposal: ddpm_unet hyperparameters guidance_scale: 2.0 -> 1.5, weight_decay: None -> 0.0; vae hyperparameters latent_dim: 32 -> 64, n_layers: None -> 3, beta: 1.0 -> 0.5, batch_size: 256 -> 128",
+    "alternatives_rejected": [],
+    "evidence": {
+      "llm_model": "claude-opus-5-5",
+      "n_changes": 2
+    },
+    "source": "llm"
+  },
+  {
+    "step": "preprocessing",
+    "decision": "data split",
+    "chosen": "train 4498 / val 501 / test 7180",
+    "rationale": "used the file's predefined train/val/test split; label budget 5.0%: train 89996 -> 4498",
+    "alternatives_rejected": [],
+    "evidence": {},
+    "source": "system"
+  },
+  {
+    "step": "evaluation",
+    "decision": "feature space",
+    "chosen": "128-d penultimate features of a CNN trained on the 4498 real training images (val accuracy 0.850)",
+    "rationale": "Fitted on real training data only.",
+    "alternatives_rejected": [],
+    "evidence": {},
+    "source": "system"
+  },
+  {
+    "step": "critic",
+    "decision": "trigger: low_diversity",
+    "chosen": "vae",
+    "rationale": "vae: recall 0.130 < 0.5 x real-holdout recall 0.967",
+    "alternatives_rejected": [],
+    "evidence": {
+      "suggested_action": "retune",
+      "suggested_changes": {
+        "beta": 0.25
+      }
+    },
+    "source": "critic"
+  },
+  {
+    "step": "critic",
+    "decision": "revise the plan?",
+    "chosen": "none",
+    "rationale": "The results are good enough for the main objective. Augmenting the 5% subset with DDPM samples raises macro-F1 from 0.709 to 0.764, a gain of +0.055 (95% CI [0.027, 0.080], P(gain>0)=1.0). The DDPM also clearly beats the VAE as a generator: FD is 7.2 vs 74.7 and coverage is 0.169 vs 0.006. The VAE's augmentation gain is close (+0.047, overlapping CI), but its TSTR collapses to 0.176. The DDPM's IID fidelity falls short of the real-holdout reference (recall 0.557 vs 0.967, coverage 0.169 vs 0.409, FD 7.2 vs 0.43). Against the shifted real test split it is roughly on par (coverage 0.154, FD 10.6, precision 0.834). So the generator is no further from the training distribution than genuinely new test patches are. TSTR does not reach parity: 0.639 vs 0.709 real-only, a gap of \u22120.070 (CI [\u22120.098, \u22120.045]). The deficit is concentrated in smooth muscle (0.27), lymphocytes (0.52) and debris (0.46). There is no sign of memorisation: DCR ratio 1.06, too-close fraction 0.7%, no exact copies. The primary metric, macro_f1_gain, is positive and its CI excludes zero. The primary model is the best available generator, and no deterministic trigger fires on it. The only trigger concerns the VAE comparison model (low diversity). Retuning the VAE (beta 0.25) cannot improve the primary metric unless it then beats the DDPM. Its augmentation gain (+0.047) is already within noise of the DDPM's, and its fidelity is an order of magnitude worse. The DDPM's main weaknesses are lower recall and coverage than the IID holdout, and a TSTR gap. They have two likely causes. First, the DDPM is under-trained: it stopped on the time cap at epoch 545 with best_epoch = final epoch, so validation loss was still improving. Second, there is a large train/test shift (Fr\u00e9chet ratio 24.4), which also caps the real-only classifier. Cancer-associated stroma recall sits at about 0.33 under every condition, which points to a shift or label issue rather than a generator issue. No in-range revision can add training time, because the 1500 s cap is fixed. Lowering guidance below 1.5 to gain diversity would probably weaken class fidelity. Augmentation already suggests some class blur: lymphocyte recall fell from 0.90 to 0.78. Fidelity was evaluated on only 501 samples, and utility CIs are about \u00b10.027, so any plausible gain from a retune would likely be within noise. Spending compute on such a gamble is not justified.",
+    "alternatives_rejected": [
+      {
+        "option": "retune vae with beta=0.25 (trigger suggestion)",
+        "reason": "The VAE is the comparison model. Better VAE diversity would not change the primary model's macro_f1_gain, and closing a 10x FD gap to make the VAE the new primary is implausible."
+      },
+      {
+        "option": "switch primary to vae",
+        "reason": "Its augmentation gain is lower (+0.047 vs +0.055) and its TSTR fails (0.176 macro-F1). Every fidelity metric is far worse."
+      },
+      {
+        "option": "retune ddpm_unet guidance_scale 1.5 -> 0.5-1.0 to raise recall/coverage",
+        "reason": "Guidance is already low. Further reduction trades class-conditional fidelity for diversity, and the per-class drop in lymphocyte recall under augmentation suggests class fidelity is already marginal. Any expected change to macro_f1_gain is inside the CI width."
+      },
+      {
+        "option": "retune ddpm_unet lr 2e-4 -> 4e-4, or base_channels 32 -> 16, to converge further within the time cap",
+        "reason": "This addresses the under-training plausibly, but the outcome is uncertain. A higher lr risks instability, and smaller capacity risks lower fidelity. The retrain costs the full 1500 s budget for a gain likely within noise."
+      },
+      {
+        "option": "switch to wgan_gp",
+        "reason": "On roughly 4.5k images a conditional WGAN-GP is unlikely to beat a DDPM on diversity or coverage, and it risks mode collapse, which would hurt TSTR and augmentation."
+      }
+    ],
+    "evidence": {
+      "expected_effect": "No change; current results stand. Report three caveats with them. (1) The augmentation gain is about +0.055 macro-F1, robustly positive. (2) Synthetic-only training transfers but does not reach parity (\u22120.070 vs real-only), with weak classes being smooth muscle, lymphocytes and debris. (3) Test-split utility measures transfer under substantial train/test shift. The DDPM was time-limited and still improving, so a larger training budget is the most likely route to better recall, coverage and TSTR in a future run."
+    },
+    "source": "critic"
+  },
+  {
+    "step": "recommendation",
+    "decision": "verdict",
+    "chosen": "Synthetic augmentation reliably improves macro-F1: +0.055 (95% CI +0.027 to +0.080).",
+    "rationale": "Synthetic augmentation reliably improves macro-F1: +0.055 (95% CI +0.027 to +0.080).",
+    "alternatives_rejected": [],
+    "evidence": {},
+    "source": "system"
+  }
+]

@@ -1,0 +1,16 @@
+{
+  "verdict": "Synthetic augmentation reliably improves macro-F1: +0.055 (95% CI +0.027 to +0.080).",
+  "uses": [
+    "Augment the real training set with ddpm_unet samples at the planned ratio when training the downstream classifier.",
+    "A classifier trained on synthetic data alone reaches 90% of the real-data macro-F1: the samples carry most of the class signal and are suitable for pipeline prototyping, teaching and method development where real data cannot be shared.",
+    "No memorization signal (DCR ratio 1.06, 0.7% too close vs ~5% expected); privacy still requires a formal guarantee (e.g. differential privacy) before external release."
+  ],
+  "warnings": [
+    "Never use synthetic samples as test or validation data: performance must be measured on held-out real data.",
+    "Do not estimate population quantities (prevalence, class proportions, effect sizes, differential-expression statistics) from synthetic samples; they reflect the generator, not new evidence.",
+    "Label synthetic records as synthetic wherever they are stored or shared; never pool them with real data in a way that hides their origin."
+  ],
+  "primary_model": "ddpm_unet",
+  "primary_metric": "macro_f1_gain",
+  "primary_metric_value": 0.05488237453926759
+}

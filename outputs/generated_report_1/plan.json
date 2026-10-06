@@ -1,0 +1,124 @@
+{
+  "use_generative_model": true,
+  "decision_rationale": "The objective asks for class-conditional synthetic images and tests whether they help (augmentation gain and TSTR transfer). Both questions need a generator, so a non-generative alternative cannot answer them. The data can support one: a 5% stratified subsample of the 89,996 predefined training patches gives about 4,500 labelled images, at least 398 per class (minority 'normal colon mucosa'). Class imbalance is mild (ratio 1.64), the images are 28x28x3 (p=2,352) and the intrinsic dimension is about 50. That is enough for a small conditional image generator without heavy memorisation. Memorisation still has to be measured, because 5% of the data are near-duplicates.",
+  "alternative_if_not": null,
+  "task": {
+    "raw_objective": "Only a small labelled subset (~5% of training patches) is available. Generate class-conditional synthetic tissue patches, assess whether augmenting the subset improves a downstream classifier, and whether a classifier trained on synthetic data alone transfers to real data.",
+    "task_type": "augmentation",
+    "secondary_tasks": [
+      "generation"
+    ],
+    "conditional": true,
+    "target_classes": [],
+    "wants_rare_classes": false,
+    "label_budget": 0.05,
+    "label_budget_per_class": null,
+    "downstream_task": "classification",
+    "wants_tstr": true,
+    "privacy_sensitive": false,
+    "evidence": {
+      "augmentation": [
+        "augmenting",
+        "small labelled",
+        "improves a downstream classifier"
+      ],
+      "generation": [
+        "generate",
+        "synthetic",
+        "synthetic"
+      ]
+    },
+    "source": "heuristic"
+  },
+  "data": {
+    "use_predefined_splits": true,
+    "test_fraction": 0.2,
+    "val_fraction": 0.1,
+    "label_budget": 0.05,
+    "max_train_samples": null,
+    "n_hvg": null
+  },
+  "models": [
+    {
+      "name": "ddpm_unet",
+      "role": "primary",
+      "conditional": true,
+      "representation": "pixels",
+      "hyperparameters": {
+        "base_channels": 32,
+        "timesteps": 1000,
+        "sample_steps": 100,
+        "guidance_scale": 1.5,
+        "p_uncond": 0.1,
+        "lr": 0.0002,
+        "batch_size": 128,
+        "max_epochs": 2000,
+        "weight_decay": 0.0
+      },
+      "train_seconds": 1500.0,
+      "rationale": "A small class-conditional DDPM with classifier-free guidance, trained on about 4,500 labelled 28x28x3 images. It has the best expected fidelity and diversity in the library. Guidance is reduced to 1.5 so the samples cover more of each class, which TSTR rewards."
+    },
+    {
+      "name": "vae",
+      "role": "comparison",
+      "conditional": true,
+      "representation": "pixels",
+      "hyperparameters": {
+        "latent_dim": 64,
+        "hidden_dim": 256,
+        "n_layers": 3,
+        "beta": 0.5,
+        "lr": 0.001,
+        "batch_size": 128,
+        "max_epochs": 2000,
+        "weight_decay": 0.0
+      },
+      "train_seconds": 750.0,
+      "rationale": "A conditional convolutional VAE as a cheap, stable likelihood-based comparison. The latent size is matched to the intrinsic dimension (about 50), and a lower beta reduces the blurriness typical of Gaussian VAEs."
+    }
+  ],
+  "sampling": {
+    "strategy": "augment_per_class",
+    "target_classes": [
+      "adipose",
+      "background",
+      "debris",
+      "lymphocytes",
+      "mucus",
+      "smooth muscle",
+      "normal colon mucosa",
+      "cancer-associated stroma",
+      "colorectal adenocarcinoma epithelium"
+    ],
+    "n_per_class": {
+      "adipose": 493,
+      "background": 479,
+      "debris": 497,
+      "lymphocytes": 511,
+      "mucus": 416,
+      "smooth muscle": 593,
+      "normal colon mucosa": 398,
+      "cancer-associated stroma": 456,
+      "colorectal adenocarcinoma epithelium": 652
+    },
+    "n_total": 4499
+  },
+  "evaluation": {
+    "metrics": [
+      "utility_augmented",
+      "utility_tstr",
+      "per_class_recall",
+      "precision_recall",
+      "density_coverage",
+      "frechet_distance",
+      "mmd",
+      "memorization"
+    ],
+    "primary_metric": "macro_f1_gain",
+    "baselines": [
+      "real_only_classifier"
+    ],
+    "feature_space": "domain_cnn_features"
+  },
+  "source": "llm"
+}

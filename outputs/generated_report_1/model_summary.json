@@ -1,0 +1,540 @@
+{
+  "training": {
+    "ddpm_unet": {
+      "model": "ddpm_unet",
+      "role": "primary",
+      "conditional": true,
+      "representation": "pixels",
+      "hyperparameters": {
+        "base_channels": 32,
+        "timesteps": 1000,
+        "sample_steps": 100,
+        "guidance_scale": 1.5,
+        "p_uncond": 0.1,
+        "lr": 0.0002,
+        "batch_size": 128,
+        "max_epochs": 2000,
+        "weight_decay": 0.0
+      },
+      "n_parameters": 1075846,
+      "epochs_run": 545,
+      "seconds": 1500.2,
+      "stopped_because": "time",
+      "best_epoch": 545,
+      "best_val_loss": 0.08650989085435867,
+      "final_train_loss": 0.0783681601640724,
+      "val_curve": [
+        {
+          "epoch": 1,
+          "val_loss": 0.4923534095287323
+        },
+        {
+          "epoch": 5,
+          "val_loss": 0.18884006142616272
+        },
+        {
+          "epoch": 10,
+          "val_loss": 0.1379173994064331
+        },
+        {
+          "epoch": 15,
+          "val_loss": 0.12343773990869522
+        },
+        {
+          "epoch": 20,
+          "val_loss": 0.11624253541231155
+        },
+        {
+          "epoch": 25,
+          "val_loss": 0.11176272481679916
+        },
+        {
+          "epoch": 30,
+          "val_loss": 0.10862841457128525
+        },
+        {
+          "epoch": 35,
+          "val_loss": 0.10630977898836136
+        },
+        {
+          "epoch": 40,
+          "val_loss": 0.10445360094308853
+        },
+        {
+          "epoch": 45,
+          "val_loss": 0.10283522307872772
+        },
+        {
+          "epoch": 50,
+          "val_loss": 0.10152970254421234
+        },
+        {
+          "epoch": 55,
+          "val_loss": 0.10041667520999908
+        },
+        {
+          "epoch": 60,
+          "val_loss": 0.09943634271621704
+        },
+        {
+          "epoch": 65,
+          "val_loss": 0.09860479831695557
+        },
+        {
+          "epoch": 70,
+          "val_loss": 0.09784705191850662
+        },
+        {
+          "epoch": 75,
+          "val_loss": 0.09719333052635193
+        },
+        {
+          "epoch": 80,
+          "val_loss": 0.09660736471414566
+        },
+        {
+          "epoch": 85,
+          "val_loss": 0.09613071382045746
+        },
+        {
+          "epoch": 90,
+          "val_loss": 0.09567497670650482
+        },
+        {
+          "epoch": 95,
+          "val_loss": 0.09521099179983139
+        },
+        {
+          "epoch": 100,
+          "val_loss": 0.09480764716863632
+        },
+        {
+          "epoch": 105,
+          "val_loss": 0.09444353729486465
+        },
+        {
+          "epoch": 110,
+          "val_loss": 0.0940990298986435
+        },
+        {
+          "epoch": 115,
+          "val_loss": 0.09378888458013535
+        },
+        {
+          "epoch": 120,
+          "val_loss": 0.09349960833787918
+        },
+        {
+          "epoch": 125,
+          "val_loss": 0.09326104819774628
+        },
+        {
+          "epoch": 130,
+          "val_loss": 0.09299606829881668
+        },
+        {
+          "epoch": 135,
+          "val_loss": 0.09275022149085999
+        },
+        {
+          "epoch": 140,
+          "val_loss": 0.09254433214664459
+        },
+        {
+          "epoch": 145,
+          "val_loss": 0.09236396849155426
+        },
+        {
+          "epoch": 150,
+          "val_loss": 0.09219112247228622
+        },
+        {
+          "epoch": 155,
+          "val_loss": 0.09201870858669281
+        },
+        {
+          "epoch": 160,
+          "val_loss": 0.0918462947010994
+        },
+        {
+          "epoch": 165,
+          "val_loss": 0.09172050654888153
+        },
+        {
+          "epoch": 170,
+          "val_loss": 0.09158112853765488
+        },
+        {
+          "epoch": 175,
+          "val_loss": 0.09143944829702377
+        },
+        {
+          "epoch": 180,
+          "val_loss": 0.09127888828516006
+        },
+        {
+          "epoch": 185,
+          "val_loss": 0.09115048497915268
+        },
+        {
+          "epoch": 190,
+          "val_loss": 0.09100127220153809
+        },
+        {
+          "epoch": 195,
+          "val_loss": 0.09087753295898438
+        },
+        {
+          "epoch": 200,
+          "val_loss": 0.09077005833387375
+        },
+        {
+          "epoch": 205,
+          "val_loss": 0.09066730737686157
+        },
+        {
+          "epoch": 210,
+          "val_loss": 0.09056001901626587
+        },
+        {
+          "epoch": 215,
+          "val_loss": 0.0904582217335701
+        },
+        {
+          "epoch": 220,
+          "val_loss": 0.09036155790090561
+        },
+        {
+          "epoch": 225,
+          "val_loss": 0.09025099873542786
+        },
+        {
+          "epoch": 230,
+          "val_loss": 0.09015345573425293
+        },
+        {
+          "epoch": 235,
+          "val_loss": 0.0900551825761795
+        },
+        {
+          "epoch": 240,
+          "val_loss": 0.08996054530143738
+        },
+        {
+          "epoch": 245,
+          "val_loss": 0.08986357599496841
+        },
+        {
+          "epoch": 250,
+          "val_loss": 0.08976039290428162
+        },
+        {
+          "epoch": 255,
+          "val_loss": 0.08967402577400208
+        },
+        {
+          "epoch": 260,
+          "val_loss": 0.08960376679897308
+        },
+        {
+          "epoch": 265,
+          "val_loss": 0.0895274430513382
+        },
+        {
+          "epoch": 270,
+          "val_loss": 0.08945140987634659
+        },
+        {
+          "epoch": 275,
+          "val_loss": 0.08938053995370865
+        },
+        {
+          "epoch": 280,
+          "val_loss": 0.08930107951164246
+        },
+        {
+          "epoch": 285,
+          "val_loss": 0.08922071754932404
+        },
+        {
+          "epoch": 290,
+          "val_loss": 0.08914154022932053
+        },
+        {
+          "epoch": 295,
+          "val_loss": 0.08905106782913208
+        },
+        {
+          "epoch": 300,
+          "val_loss": 0.08896955102682114
+        },
+        {
+          "epoch": 305,
+          "val_loss": 0.08887775242328644
+        },
+        {
+          "epoch": 310,
+          "val_loss": 0.0887971818447113
+        },
+        {
+          "epoch": 315,
+          "val_loss": 0.08872683346271515
+        },
+        {
+          "epoch": 320,
+          "val_loss": 0.08866483718156815
+        },
+        {
+          "epoch": 325,
+          "val_loss": 0.0886012464761734
+        },
+        {
+          "epoch": 330,
+          "val_loss": 0.08852678537368774
+        },
+        {
+          "epoch": 335,
+          "val_loss": 0.08847464621067047
+        },
+        {
+          "epoch": 340,
+          "val_loss": 0.08840353786945343
+        },
+        {
+          "epoch": 345,
+          "val_loss": 0.08834540843963623
+        },
+        {
+          "epoch": 350,
+          "val_loss": 0.0882830023765564
+        },
+        {
+          "epoch": 355,
+          "val_loss": 0.0882081538438797
+        },
+        {
+          "epoch": 360,
+          "val_loss": 0.08813905715942383
+        },
+        {
+          "epoch": 365,
+          "val_loss": 0.08807075768709183
+        },
+        {
+          "epoch": 370,
+          "val_loss": 0.08800473809242249
+        },
+        {
+          "epoch": 375,
+          "val_loss": 0.0879475474357605
+        },
+        {
+          "epoch": 380,
+          "val_loss": 0.0879017785191536
+        },
+        {
+          "epoch": 385,
+          "val_loss": 0.08785779029130936
+        },
+        {
+          "epoch": 390,
+          "val_loss": 0.08779596537351608
+        },
+        {
+          "epoch": 395,
+          "val_loss": 0.08775761723518372
+        },
+        {
+          "epoch": 400,
+          "val_loss": 0.08770078420639038
+        },
+        {
+          "epoch": 405,
+          "val_loss": 0.08764628320932388
+        },
+        {
+          "epoch": 410,
+          "val_loss": 0.08760138601064682
+        },
+        {
+          "epoch": 415,
+          "val_loss": 0.08754204958677292
+        },
+        {
+          "epoch": 420,
+          "val_loss": 0.08749821782112122
+        },
+        {
+          "epoch": 425,
+          "val_loss": 0.08745256811380386
+        },
+        {
+          "epoch": 430,
+          "val_loss": 0.08739925175905228
+        },
+        {
+          "epoch": 435,
+          "val_loss": 0.08732987195253372
+        },
+        {
+          "epoch": 440,
+          "val_loss": 0.0872814729809761
+        },
+        {
+          "epoch": 445,
+          "val_loss": 0.08724561333656311
+        },
+        {
+          "epoch": 450,
+          "val_loss": 0.08720945566892624
+        },
+        {
+          "epoch": 455,
+          "val_loss": 0.08716726303100586
+        },
+        {
+          "epoch": 460,
+          "val_loss": 0.08711939305067062
+        },
+        {
+          "epoch": 465,
+          "val_loss": 0.08708897978067398
+        },
+        {
+          "epoch": 470,
+          "val_loss": 0.08705972135066986
+        },
+        {
+          "epoch": 475,
+          "val_loss": 0.0870126411318779
+        },
+        {
+          "epoch": 480,
+          "val_loss": 0.08697451651096344
+        },
+        {
+          "epoch": 485,
+          "val_loss": 0.08694086968898773
+        },
+        {
+          "epoch": 490,
+          "val_loss": 0.08690276741981506
+        },
+        {
+          "epoch": 495,
+          "val_loss": 0.08687705546617508
+        },
+        {
+          "epoch": 500,
+          "val_loss": 0.08684275299310684
+        },
+        {
+          "epoch": 505,
+          "val_loss": 0.08679196238517761
+        },
+        {
+          "epoch": 510,
+          "val_loss": 0.0867592841386795
+        },
+        {
+          "epoch": 515,
+          "val_loss": 0.08671694248914719
+        },
+        {
+          "epoch": 520,
+          "val_loss": 0.08667601644992828
+        },
+        {
+          "epoch": 525,
+          "val_loss": 0.086637482047081
+        },
+        {
+          "epoch": 530,
+          "val_loss": 0.08660455793142319
+        },
+        {
+          "epoch": 535,
+          "val_loss": 0.0865762010216713
+        },
+        {
+          "epoch": 540,
+          "val_loss": 0.08654315024614334
+        },
+        {
+          "epoch": 545,
+          "val_loss": 0.08650989085435867
+        }
+      ],
+      "optimizer_steps": 19061
+    },
+    "vae": {
+      "model": "vae",
+      "role": "comparison",
+      "conditional": true,
+      "representation": "pixels",
+      "hyperparameters": {
+        "latent_dim": 64,
+        "hidden_dim": 256,
+        "n_layers": 3,
+        "beta": 0.5,
+        "lr": 0.001,
+        "batch_size": 128,
+        "max_epochs": 2000,
+        "weight_decay": 0.0
+      },
+      "n_parameters": 3540870,
+      "epochs_run": 87,
+      "seconds": 57.2,
+      "stopped_because": "early_stop",
+      "best_epoch": 62,
+      "best_val_loss": -1134.0418701171875,
+      "final_train_loss": -1779.8890066964286
+    }
+  },
+  "revision": {
+    "ran": false
+  },
+  "critique": {
+    "assessment": "The results are good enough for the main objective. Augmenting the 5% subset with DDPM samples raises macro-F1 from 0.709 to 0.764, a gain of +0.055 (95% CI [0.027, 0.080], P(gain>0)=1.0). The DDPM also clearly beats the VAE as a generator: FD is 7.2 vs 74.7 and coverage is 0.169 vs 0.006. The VAE's augmentation gain is close (+0.047, overlapping CI), but its TSTR collapses to 0.176. The DDPM's IID fidelity falls short of the real-holdout reference (recall 0.557 vs 0.967, coverage 0.169 vs 0.409, FD 7.2 vs 0.43). Against the shifted real test split it is roughly on par (coverage 0.154, FD 10.6, precision 0.834). So the generator is no further from the training distribution than genuinely new test patches are. TSTR does not reach parity: 0.639 vs 0.709 real-only, a gap of \u22120.070 (CI [\u22120.098, \u22120.045]). The deficit is concentrated in smooth muscle (0.27), lymphocytes (0.52) and debris (0.46). There is no sign of memorisation: DCR ratio 1.06, too-close fraction 0.7%, no exact copies.",
+    "action": "none",
+    "target_model": "ddpm_unet",
+    "hyperparameter_changes": {},
+    "rationale": "The primary metric, macro_f1_gain, is positive and its CI excludes zero. The primary model is the best available generator, and no deterministic trigger fires on it. The only trigger concerns the VAE comparison model (low diversity). Retuning the VAE (beta 0.25) cannot improve the primary metric unless it then beats the DDPM. Its augmentation gain (+0.047) is already within noise of the DDPM's, and its fidelity is an order of magnitude worse. The DDPM's main weaknesses are lower recall and coverage than the IID holdout, and a TSTR gap. They have two likely causes. First, the DDPM is under-trained: it stopped on the time cap at epoch 545 with best_epoch = final epoch, so validation loss was still improving. Second, there is a large train/test shift (Fr\u00e9chet ratio 24.4), which also caps the real-only classifier. Cancer-associated stroma recall sits at about 0.33 under every condition, which points to a shift or label issue rather than a generator issue. No in-range revision can add training time, because the 1500 s cap is fixed. Lowering guidance below 1.5 to gain diversity would probably weaken class fidelity. Augmentation already suggests some class blur: lymphocyte recall fell from 0.90 to 0.78. Fidelity was evaluated on only 501 samples, and utility CIs are about \u00b10.027, so any plausible gain from a retune would likely be within noise. Spending compute on such a gamble is not justified.",
+    "alternatives_rejected": [
+      {
+        "option": "retune vae with beta=0.25 (trigger suggestion)",
+        "reason": "The VAE is the comparison model. Better VAE diversity would not change the primary model's macro_f1_gain, and closing a 10x FD gap to make the VAE the new primary is implausible."
+      },
+      {
+        "option": "switch primary to vae",
+        "reason": "Its augmentation gain is lower (+0.047 vs +0.055) and its TSTR fails (0.176 macro-F1). Every fidelity metric is far worse."
+      },
+      {
+        "option": "retune ddpm_unet guidance_scale 1.5 -> 0.5-1.0 to raise recall/coverage",
+        "reason": "Guidance is already low. Further reduction trades class-conditional fidelity for diversity, and the per-class drop in lymphocyte recall under augmentation suggests class fidelity is already marginal. Any expected change to macro_f1_gain is inside the CI width."
+      },
+      {
+        "option": "retune ddpm_unet lr 2e-4 -> 4e-4, or base_channels 32 -> 16, to converge further within the time cap",
+        "reason": "This addresses the under-training plausibly, but the outcome is uncertain. A higher lr risks instability, and smaller capacity risks lower fidelity. The retrain costs the full 1500 s budget for a gain likely within noise."
+      },
+      {
+        "option": "switch to wgan_gp",
+        "reason": "On roughly 4.5k images a conditional WGAN-GP is unlikely to beat a DDPM on diversity or coverage, and it risks mode collapse, which would hurt TSTR and augmentation."
+      }
+    ],
+    "expected_effect": "No change; current results stand. Report three caveats with them. (1) The augmentation gain is about +0.055 macro-F1, robustly positive. (2) Synthetic-only training transfers but does not reach parity (\u22120.070 vs real-only), with weak classes being smooth muscle, lymphocytes and debris. (3) Test-split utility measures transfer under substantial train/test shift. The DDPM was time-limited and still improving, so a larger training budget is the most likely route to better recall, coverage and TSTR in a future run.",
+    "triggers": [
+      {
+        "code": "low_diversity",
+        "model": "vae",
+        "message": "vae: recall 0.130 < 0.5 x real-holdout recall 0.967",
+        "suggested_action": "retune",
+        "suggested_target": "vae",
+        "suggested_changes": {
+          "beta": 0.25
+        }
+      }
+    ],
+    "source": "llm"
+  }
+}

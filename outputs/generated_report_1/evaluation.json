@@ -1,0 +1,188 @@
+{
+  "generative": {
+    "feature_space": "128-d penultimate features of a CNN trained on the 4498 real training images (val accuracy 0.850)",
+    "n_real_train_eval": 4498,
+    "n_real_holdout_eval": 501,
+    "holdout_definition": "validation split (IID with train; predefined test split reported separately)",
+    "models": {
+      "ddpm_unet": {
+        "precision": 0.8003992015968064,
+        "recall": 0.5569141840818141,
+        "density": 0.6778443113772454,
+        "coverage": 0.1691863050244553,
+        "frechet_distance": 7.238264690326281,
+        "mmd": 0.02319788932800293,
+        "dcr_median_synth": 1.9651001691818237,
+        "dcr_median_holdout": 1.8522170782089233,
+        "dcr_ratio": 1.0609448494460796,
+        "too_close_fraction": 0.007114273010226767,
+        "exact_copy_fraction": 0.0,
+        "mannwhitney_p_synth_closer": 0.9999932797233615,
+        "memorization_flag": false,
+        "n_synth_eval": 501
+      },
+      "vae": {
+        "precision": 0.5289421157684631,
+        "recall": 0.1302801244997777,
+        "density": 0.18323353293413175,
+        "coverage": 0.005558025789239662,
+        "frechet_distance": 74.67638658364163,
+        "mmd": 0.40626370906829834,
+        "dcr_median_synth": 4.936815023422241,
+        "dcr_median_holdout": 1.8522170782089233,
+        "dcr_ratio": 2.665354445493017,
+        "too_close_fraction": 0.0,
+        "exact_copy_fraction": 0.0,
+        "mannwhitney_p_synth_closer": 1.0,
+        "memorization_flag": false,
+        "n_synth_eval": 501
+      }
+    },
+    "reference_real_holdout": {
+      "precision": 0.9660678642714571,
+      "recall": 0.966651845264562,
+      "density": 1.0059880239520957,
+      "coverage": 0.40907069808803914,
+      "frechet_distance": 0.4348556591745267,
+      "mmd": -0.0004988908767700195
+    },
+    "reference_real_test": {
+      "precision": 0.8343313373253493,
+      "recall": 0.8212538906180524,
+      "density": 0.5552894211576846,
+      "coverage": 0.15406847487772343,
+      "frechet_distance": 10.608627800703378,
+      "mmd": 0.018265187740325928
+    },
+    "train_test_shift": {
+      "frechet_ratio_test_vs_iid_holdout": 24.39574506364115,
+      "shift_flag": true,
+      "note": "test split is further from train than IID holdout data are; downstream utility on test then measures transfer to a shifted distribution"
+    },
+    "utility": {
+      "real_only": {
+        "macro_f1": 0.7088931548978312,
+        "macro_f1_sd": 0.020455549278166802,
+        "balanced_accuracy": 0.7227978966822058,
+        "target_class_recall": NaN,
+        "per_class_recall": {
+          "0": 0.8153961136023916,
+          "1": 1.0,
+          "2": 0.576204523107178,
+          "3": 0.8990536277602524,
+          "4": 0.6389694041867955,
+          "5": 0.5489864864864865,
+          "6": 0.8493027440395862,
+          "7": 0.3365003958828187,
+          "8": 0.8407677750743444
+        },
+        "n_seeds": 3
+      },
+      "models": {
+        "ddpm_unet": {
+          "augmented": {
+            "macro_f1": 0.7637755294370988,
+            "macro_f1_sd": 0.009222873962159442,
+            "balanced_accuracy": 0.771116807203336,
+            "target_class_recall": NaN,
+            "per_class_recall": {
+              "0": 0.9623816641753861,
+              "1": 1.0,
+              "2": 0.6951819075712881,
+              "3": 0.7823343848580442,
+              "4": 0.7123993558776167,
+              "5": 0.7145270270270271,
+              "6": 0.8556005398110661,
+              "7": 0.3333333333333333,
+              "8": 0.8842930521762639
+            },
+            "n_seeds": 3
+          },
+          "macro_f1_gain": {
+            "gain": 0.05488237453926759,
+            "ci_low": 0.02677377341279203,
+            "ci_high": 0.07971617842332551,
+            "prob_positive": 1.0
+          },
+          "n_synthetic_added": 4495,
+          "tstr": {
+            "macro_f1": 0.6385783972642408,
+            "macro_f1_sd": 0.011980997440163562,
+            "balanced_accuracy": 0.6464719213595095,
+            "target_class_recall": NaN,
+            "per_class_recall": {
+              "0": 0.9085700049825611,
+              "1": 1.0,
+              "2": 0.4591937069813176,
+              "3": 0.5168243953732913,
+              "4": 0.5954911433172302,
+              "5": 0.2708333333333333,
+              "6": 0.9100314889788574,
+              "7": 0.36817102137767216,
+              "8": 0.7891321978913219
+            },
+            "n_seeds": 3
+          },
+          "tstr_vs_real_macro_f1": {
+            "gain": -0.07031475763359041,
+            "ci_low": -0.0976435433260321,
+            "ci_high": -0.04510558203390167,
+            "prob_positive": 0.0
+          }
+        },
+        "vae": {
+          "augmented": {
+            "macro_f1": 0.7560890322684751,
+            "macro_f1_sd": 0.008156439046442296,
+            "balanced_accuracy": 0.7630335044957041,
+            "target_class_recall": NaN,
+            "per_class_recall": {
+              "0": 0.8819133034379671,
+              "1": 1.0,
+              "2": 0.6843657817109144,
+              "3": 0.9169295478443743,
+              "4": 0.7990338164251208,
+              "5": 0.5675675675675675,
+              "6": 0.7804768331084121,
+              "7": 0.3475851148060174,
+              "8": 0.8894295755609624
+            },
+            "n_seeds": 3
+          },
+          "macro_f1_gain": {
+            "gain": 0.0471958773706439,
+            "ci_low": 0.02033477514459743,
+            "ci_high": 0.07188560177674615,
+            "prob_positive": 1.0
+          },
+          "n_synthetic_added": 4495,
+          "tstr": {
+            "macro_f1": 0.17558246167952943,
+            "macro_f1_sd": 0.014553369438040436,
+            "balanced_accuracy": 0.2521443903284817,
+            "target_class_recall": NaN,
+            "per_class_recall": {
+              "0": 0.0027404085700049826,
+              "1": 0.8677685950413223,
+              "2": 0.058997050147492625,
+              "3": 0.0,
+              "4": 0.021256038647343,
+              "5": 0.6846846846846847,
+              "6": 0.5119208277103015,
+              "7": 0.12193190815518606,
+              "8": 0.0
+            },
+            "n_seeds": 3
+          },
+          "tstr_vs_real_macro_f1": {
+            "gain": -0.5333106932183018,
+            "ci_low": -0.5613659355984332,
+            "ci_high": -0.5051815506814828,
+            "prob_positive": 0.0
+          }
+        }
+      },
+      "classifier": "CNN: 3 conv blocks (32-64-128 channels, batch norm, ReLU, max-pool) + global average pooling + linear head; Adam lr 1e-3, weight decay 1e-4, batch 128; early stopping on real validation loss (patience 8), cap 60s"
+    }
+  }
+}
