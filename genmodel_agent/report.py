@@ -31,7 +31,9 @@ WRITER_KEYS = ["executive_summary", "data_and_objective", "decisions_explained",
 # ---------------------------------------------------------------------------
 
 def fidelity_table(gen: dict) -> pd.DataFrame:
-    rows = {"real holdout (reference)": gen.get("reference_real_holdout", {})}
+    rows = {"real holdout, IID (reference)": gen.get("reference_real_holdout", {})}
+    if gen.get("reference_real_test"):
+        rows["real test split (shift diagnostic)"] = gen["reference_real_test"]
     rows.update(gen.get("models", {}))
     df = pd.DataFrame({k: {c: v.get(c) for c in FIDELITY_COLS} for k, v in rows.items()}).T
     return df.dropna(axis=1, how="all")
@@ -239,10 +241,17 @@ def write_report(agent, manifest: dict, narrative_result=None) -> None:
         md += ["## 5. Evaluation", sections["results_interpretation"], ""]
         gen = agent.results.get("generative")
         if gen:
-            md += [f"Feature space: {gen['feature_space']}. Real train n={gen['n_real_train_eval']}, "
-                   f"real holdout n={gen['n_real_holdout_eval']}; synthetic sets scored at the "
-                   "holdout's n.", "", "### Fidelity, diversity, memorization", "",
-                   _md(fidelity_table(gen)), ""]
+            md += [f"Feature space: {gen['feature_space']}. Real train n={gen['n_real_train_eval']}; "
+                   f"reference holdout = {gen.get('holdout_definition', 'holdout')}, "
+                   f"n={gen['n_real_holdout_eval']}; synthetic sets scored at the holdout's n.", ""]
+            if gen.get("train_test_shift"):
+                s = gen["train_test_shift"]
+                md += [f"**Train/test shift:** Frechet distance of the test split is "
+                       f"{s['frechet_ratio_test_vs_iid_holdout']:.2f}x that of IID holdout data "
+                       f"-- {s['note']}.", ""]
+            md += ["### Fidelity, diversity, memorization", "", _md(fidelity_table(gen)), ""]
+            if gen.get("utility", {}).get("classifier"):
+                md += [f"Downstream classifier: {gen['utility']['classifier']}.", ""]
             pc = per_class_table(gen)
             if len(pc):
                 md += ["### Target classes", "", _md(pc), ""]

@@ -164,8 +164,12 @@ class Agent:
     def _apply_budget_caps(self) -> None:
         for m in self.plan.models:
             hp = m.hyperparameters
-            if "max_epochs" in hp:
-                hp["max_epochs"] = int(min(hp["max_epochs"], self.budget.max_epochs))
+            if "max_epochs" in hp and hp["max_epochs"] > self.budget.max_epochs:
+                self.log.add("validator", f"{m.name} epoch cap",
+                             f"max_epochs {hp['max_epochs']} -> {self.budget.max_epochs}",
+                             "Run-level epoch cap for this mode; wall-clock cap "
+                             f"{m.train_seconds:.0f}s still applies.", source="validator")
+                hp["max_epochs"] = int(self.budget.max_epochs)
         if self.budget.max_train_samples:
             self.plan.data.max_train_samples = self.budget.max_train_samples
 
@@ -278,9 +282,18 @@ class Agent:
             self.log.add("evaluation", "feature space", self.space.description,
                          "Fitted on real training data only.", source="system")
             sp = self.splits
-            self.real = {"train": self.space.real_canonical(sp.train.X), "y_train": sp.train.y,
-                         "val": self.space.real_canonical(sp.val.X), "y_val": sp.val.y,
-                         "test": self.space.real_canonical(sp.test.X), "y_test": sp.test.y,
+            from .evaluate.utility import concat
+            predefined = bool(self.data.splits) and self.plan.data.use_predefined_splits
+            val_c = self.space.real_canonical(sp.val.X)
+            test_c = self.space.real_canonical(sp.test.X)
+            hold = val_c if predefined else concat(val_c, test_c)
+            y_hold = sp.val.y if predefined or sp.val.y is None else np.concatenate([sp.val.y, sp.test.y])
+            self.real = {"holdout": hold, "y_holdout": y_hold, "test_is_separate": predefined,
+                         "holdout_definition": "validation split (IID with train; predefined test "
+                         "split reported separately)" if predefined else
+                         "validation + test splits (both drawn IID by the agent)",
+                         "train": self.space.real_canonical(sp.train.X), "y_train": sp.train.y,
+                         "val": val_c, "y_val": sp.val.y, "test": test_c, "y_test": sp.test.y,
                          "train_counts": self.space.real_counts(sp.train.X)}
         return self.space
 

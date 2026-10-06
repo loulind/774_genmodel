@@ -25,6 +25,15 @@ from .features import make_classifier
 N_BOOT = 1000
 
 
+def classifier_description(space) -> str:
+    if space.modality == "image":
+        return ("CNN: 3 conv blocks (32-64-128 channels, batch norm, ReLU, max-pool) + global "
+                "average pooling + linear head; Adam lr 1e-3, weight decay 1e-4, batch 128; early "
+                f"stopping on real validation loss (patience 8), cap {space.classifier_seconds:.0f}s")
+    return ("multinomial logistic regression (C=1, lbfgs) on standardised evaluation features "
+            f"({space.description})")
+
+
 def concat(a, b):
     if isinstance(a, pd.DataFrame):
         return pd.concat([a, b.astype(a.dtypes.to_dict(), errors="ignore")], ignore_index=True)
@@ -65,15 +74,23 @@ def summarise(preds, y_test, n_classes, targets) -> dict:
 
 
 def paired_gain(preds_new, preds_base, y_test, metric, rng) -> dict:
-    """Bootstrap the gain metric(new) - metric(base) over test cases."""
-    n = len(y_test)
+    """Bootstrap the gain metric(new) - metric(base).
 
-    def stat(idx):
-        return np.mean([metric(y_test[idx], pn[idx]) - metric(y_test[idx], pb[idx])
-                        for pn, pb in zip(preds_new, preds_base)])
+    Two sources of variability are resampled in each draw (a two-level
+    bootstrap): test cases (paired -- the same cases for both conditions) and
+    classifier-training seeds (independently per condition). Resampling cases
+    alone would understate uncertainty whenever seed-to-seed variation is
+    comparable to the effect.
+    """
+    n, k_new, k_base = len(y_test), len(preds_new), len(preds_base)
 
-    point = stat(np.arange(n))
-    boots = np.array([stat(rng.integers(0, n, n)) for _ in range(N_BOOT)])
+    def stat(idx, s_new, s_base):
+        return (np.mean([metric(y_test[idx], preds_new[s][idx]) for s in s_new])
+                - np.mean([metric(y_test[idx], preds_base[s][idx]) for s in s_base]))
+
+    point = stat(np.arange(n), range(k_new), range(k_base))
+    boots = np.array([stat(rng.integers(0, n, n), rng.integers(0, k_new, k_new),
+                           rng.integers(0, k_base, k_base)) for _ in range(N_BOOT)])
     return {"gain": float(point), "ci_low": float(np.quantile(boots, 0.025)),
             "ci_high": float(np.quantile(boots, 0.975)),
             "prob_positive": float((boots > 0).mean())}
@@ -85,7 +102,7 @@ def run_utility(space, real, synth_by_model: dict, n_classes: int, targets: list
     synth_by_model: name -> {"augment": (X, y) | None, "eval": (X, y) | None}."""
     Xtr, ytr, Xv, yv, Xte, yte = (real[k] for k in ("train", "y_train", "val", "y_val",
                                                       "test", "y_test"))
-    out = {"real_only": None, "models": {}}
+    out = {"real_only": None, "models": {}, "classifier": classifier_description(space)}
     base = fit_predict(space, Xtr, ytr, Xv, yv, Xte, n_classes, seeds)
     out["real_only"] = summarise(base, yte, n_classes, targets)
     macro = lambda y, p: f1_score(y, p, labels=list(range(n_classes)), average="macro",

@@ -44,6 +44,18 @@ def medmnist(flag: str) -> Path:
     return dest
 
 
+def class_names_sidecar(flag: str) -> None:
+    """Write <flag>.classes.json (names in label-code order) from MedMNIST's metadata."""
+    import json
+
+    from medmnist import INFO
+
+    labels = INFO[flag]["label"]
+    names = [labels[str(i)] for i in range(len(labels))]
+    (DATA / f"{flag}.classes.json").write_text(json.dumps(names))
+    print(f"  {flag}.classes.json: {names}")
+
+
 def pbmc3k_labeled() -> Path:
     import anndata
     import scanpy as sc
@@ -128,8 +140,9 @@ def breast_cancer_wisconsin() -> Path:
 def main() -> None:
     DATA.mkdir(exist_ok=True)
     print("Preparing datasets in", DATA)
-    medmnist("pathmnist")
-    medmnist("breastmnist")
+    for flag in ("pathmnist", "breastmnist"):
+        medmnist(flag)
+        class_names_sidecar(flag)
     pbmc3k_labeled()
     chronic_kidney_disease()
     mammography()

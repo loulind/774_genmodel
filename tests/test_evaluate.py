@@ -85,7 +85,8 @@ def test_evaluate_generative_tabular_end_to_end():
     ys = rng.integers(0, 2, 400)
     synth = pd.DataFrame(rng.normal(size=(400, 3)) + ys[:, None], columns=list("xyz"))
     synth["k"] = np.where(rng.random(400) < 0.5, "u", "v")
-    real = {"train": tr.X, "y_train": tr.y, "val": va.X, "y_val": va.y, "test": te.X, "y_test": te.y}
+    real = {"train": tr.X, "y_train": tr.y, "val": va.X, "y_val": va.y, "test": te.X, "y_test": te.y,
+            "holdout": te.X, "y_holdout": te.y}
     res = evaluate_generative(space, real, {"m": {"eval": (synth, ys), "augment": (synth[:100], ys[:100])}},
                               ["precision_recall", "frechet_distance", "mmd", "memorization",
                                "marginals", "correlation", "utility_augmented", "utility_tstr"],

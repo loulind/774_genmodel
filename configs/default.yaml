@@ -6,7 +6,7 @@ max_critic_revisions: 1
 full:
   train_seconds_image: 1500
   train_seconds_other: 480
-  max_epochs: 400
+  max_epochs: 2000
   n_synthetic_max: 10000
   eval_max_samples: 5000
 llm:

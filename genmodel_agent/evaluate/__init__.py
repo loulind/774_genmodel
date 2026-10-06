@@ -62,17 +62,38 @@ def evaluate_generative(space, real: dict, synth: dict, metrics: list[str], targ
     rng = np.random.default_rng(seed)
     i_tr = _cap(len(real["y_train"]) if real["y_train"] is not None else len(real["train"]),
                 max_samples, rng)
-    i_te = _cap(len(real["test"]), max_samples, rng)
-    can_tr, can_te = take(real["train"], i_tr), take(real["test"], i_te)
+    # The reference must be real data drawn IID with the training set: the
+    # holdout (validation, plus test when the split was drawn by the agent). A
+    # predefined test split may come from another site and differ systematically;
+    # it is reported separately as a shift diagnostic, never as the noise floor.
+    hold, y_hold = real["holdout"], real["y_holdout"]
+    i_te = _cap(len(hold), max_samples, rng)
+    can_tr, can_te = take(real["train"], i_tr), take(hold, i_te)
     F_tr, F_te = space.features(can_tr), space.features(can_te)
     y_tr = None if real["y_train"] is None else real["y_train"][i_tr]
-    y_te = None if real["y_test"] is None else real["y_test"][i_te]
+    y_te = None if y_hold is None else y_hold[i_te]
 
     results: dict = {"feature_space": space.description, "n_real_train_eval": int(len(i_tr)),
-                     "n_real_holdout_eval": int(len(i_te)), "models": {}}
-    # Real holdout scored against real train exactly as synthetic data will be.
+                     "n_real_holdout_eval": int(len(i_te)),
+                     "holdout_definition": real.get("holdout_definition", ""), "models": {}}
     results["reference_real_holdout"] = fidelity_block(space, F_tr, F_tr, F_te, can_tr, can_te,
                                                        metrics, rng, with_memorization=False)
+    if real.get("test_is_separate"):
+        i_ts = _cap(len(real["test"]), len(i_te), rng)        # same n as the IID reference
+        can_ts = take(real["test"], i_ts)
+        ref_test = fidelity_block(space, F_tr, F_tr, space.features(can_ts), can_tr, can_ts,
+                                  [m for m in metrics if m in ("precision_recall", "frechet_distance",
+                                                               "mmd")], rng, with_memorization=False)
+        results["reference_real_test"] = ref_test
+        fd_iid = results["reference_real_holdout"].get("frechet_distance")
+        fd_test = ref_test.get("frechet_distance")
+        if fd_iid and fd_test:
+            results["train_test_shift"] = {
+                "frechet_ratio_test_vs_iid_holdout": float(fd_test / fd_iid),
+                "shift_flag": bool(fd_test / fd_iid > 2.0),
+                "note": "test split is further from train than IID holdout data are; downstream "
+                        "utility on test then measures transfer to a shifted distribution"
+                        if fd_test / fd_iid > 2.0 else "no material train/test shift"}
 
     for name, s in synth.items():
         can_s, y_s = s["eval"]

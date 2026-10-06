@@ -27,7 +27,7 @@ class Budget(BaseModel):
     """Compute caps for one mode (full or quick)."""
     train_seconds_image: float = 1500      # per model, image modality
     train_seconds_other: float = 480       # per model, tabular / counts
-    max_epochs: int = 400
+    max_epochs: int = 2000
     max_train_samples: int | None = None   # subsample cap before training
     n_synthetic_max: int = 10_000          # samples generated for evaluation
     eval_max_samples: int = 5_000          # rows used by O(n^2) metrics
