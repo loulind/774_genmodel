@@ -8,11 +8,11 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Raw data: fetched by scripts/prepare_data.py, never committed
-data/
+/data/
 
 # Per-run scratch (timestamped), model checkpoints, caches, logs
-runs/
-scratch/
+/runs/
+/scratch/
 checkpoints/
 *.pt
 *.ckpt
