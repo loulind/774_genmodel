@@ -35,10 +35,10 @@ def take(X, idx):
     return X.iloc[idx].reset_index(drop=True) if isinstance(X, pd.DataFrame) else X[idx]
 
 
-def fit_predict(space, X, y, X_val, y_val, X_test, n_classes, seeds):
+def fit_predict(space, X, y, X_val, y_val, X_test, n_classes, seeds, weighted=False):
     preds = []
     for s in seeds:
-        clf = make_classifier(space, n_classes, s).fit(X, y, X_val, y_val)
+        clf = make_classifier(space, n_classes, s, weighted).fit(X, y, X_val, y_val)
         preds.append(clf.predict(X_test))
     return preds
 
@@ -80,7 +80,7 @@ def paired_gain(preds_new, preds_base, y_test, metric, rng) -> dict:
 
 
 def run_utility(space, real, synth_by_model: dict, n_classes: int, targets: list[int],
-                seeds: list[int], want_tstr: bool, rng) -> dict:
+                seeds: list[int], want_tstr: bool, rng, class_weighted: bool = False) -> dict:
     """real: dict with train/val/test canonical arrays and labels.
     synth_by_model: name -> {"augment": (X, y) | None, "eval": (X, y) | None}."""
     Xtr, ytr, Xv, yv, Xte, yte = (real[k] for k in ("train", "y_train", "val", "y_val",
@@ -91,6 +91,10 @@ def run_utility(space, real, synth_by_model: dict, n_classes: int, targets: list
     macro = lambda y, p: f1_score(y, p, labels=list(range(n_classes)), average="macro",
                                   zero_division=0)
     trec = lambda y, p: _target_recall(y, p, targets)
+    weighted = None
+    if class_weighted:
+        weighted = fit_predict(space, Xtr, ytr, Xv, yv, Xte, n_classes, seeds, weighted=True)
+        out["class_weighted"] = summarise(weighted, yte, n_classes, targets)
     for name, s in synth_by_model.items():
         res = {}
         if s.get("augment") is not None and len(s["augment"][1]):
@@ -101,6 +105,12 @@ def run_utility(space, real, synth_by_model: dict, n_classes: int, targets: list
             res["macro_f1_gain"] = paired_gain(aug, base, yte, macro, rng)
             if targets:
                 res["target_class_recall_gain"] = paired_gain(aug, base, yte, trec, rng)
+            if weighted is not None:
+                # Does synthetic oversampling beat simply reweighting the loss?
+                res["vs_class_weighted_macro_f1"] = paired_gain(aug, weighted, yte, macro, rng)
+                if targets:
+                    res["vs_class_weighted_target_recall"] = paired_gain(aug, weighted, yte,
+                                                                         trec, rng)
             res["n_synthetic_added"] = int(len(ya))
         if want_tstr and s.get("eval") is not None:
             Xs, ys = s["eval"]

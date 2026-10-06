@@ -199,3 +199,28 @@ class Decision(BaseModel):
     alternatives_rejected: list[Alternative] = Field(default_factory=list)
     evidence: dict[str, float | int | str | bool | None | list | dict] = Field(default_factory=dict)
     source: Literal["heuristic", "llm", "validator", "critic", "system"] = "heuristic"
+
+
+# ---------------------------------------------------------------------------
+# Critic
+# ---------------------------------------------------------------------------
+
+class Trigger(BaseModel):
+    code: str                     # memorization | comparison_better | low_diversity | ...
+    model: str
+    message: str
+    suggested_action: Literal["none", "retune", "switch"] = "none"
+    suggested_target: str | None = None
+    suggested_changes: dict[str, float | int | str | bool] = Field(default_factory=dict)
+
+
+class Critique(BaseModel):
+    assessment: str
+    action: Literal["none", "retune", "switch"]
+    target_model: str | None = None
+    hyperparameter_changes: dict[str, float | int | str | bool] = Field(default_factory=dict)
+    rationale: str = ""
+    alternatives_rejected: list[Alternative] = Field(default_factory=list)
+    expected_effect: str = ""
+    triggers: list[Trigger] = Field(default_factory=list)
+    source: Literal["heuristic", "llm"] = "heuristic"

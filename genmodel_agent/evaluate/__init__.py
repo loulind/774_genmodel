@@ -54,7 +54,8 @@ def fidelity_block(space, F_train, F_ref, F_syn, can_train, can_syn, metrics, rn
 
 def evaluate_generative(space, real: dict, synth: dict, metrics: list[str], targets: list[int],
                         class_names: list[str] | None, n_classes: int, seeds: list[int],
-                        want_tstr: bool, max_samples: int, seed: int) -> dict:
+                        want_tstr: bool, max_samples: int, seed: int,
+                        baselines: list[str] | None = None) -> dict:
     """real: train/val/test canonical + y_*, and optional train_counts.
     synth: model -> {"eval": (canonical, y), "augment": (canonical, y) | None,
                      "counts": raw counts | None}."""
@@ -114,5 +115,6 @@ def evaluate_generative(space, real: dict, synth: dict, metrics: list[str], targ
         results["utility"] = run_utility(
             space, real, {n: {"augment": s.get("augment"), "eval": s["eval"]}
                           for n, s in synth.items()},
-            n_classes, targets, seeds, want_tstr and "utility_tstr" in metrics, rng)
+            n_classes, targets, seeds, want_tstr and "utility_tstr" in metrics, rng,
+            class_weighted="class_weighted_classifier" in (baselines or []))
     return results

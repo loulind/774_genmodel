@@ -32,6 +32,8 @@ KNOWN_METRICS = {
     "auroc", "auprc", "score_calibration", "linear_probe", "knn_preservation",
 }
 KNOWN_PRIMARY = KNOWN_METRICS | {"target_class_recall_gain", "macro_f1_gain"}
+KNOWN_BASELINES = {"real_only_classifier", "class_weighted_classifier", "mean_mode", "knn",
+                   "mice", "isolation_forest", "pca"}
 DEFAULT_REPRESENTATION = {
     ("image", "vae"): "pixels", ("image", "wgan_gp"): "pixels", ("image", "ddpm_unet"): "pixels",
     ("counts", "nb_vae"): "counts_hvg", ("counts", "zinb_vae"): "counts_hvg",
@@ -170,6 +172,11 @@ def validate(candidate: dict | Plan, profile: DataProfile, budget: Budget) -> Va
         if bad:
             plan.evaluation.metrics = [x for x in plan.evaluation.metrics if x in KNOWN_METRICS]
             repairs.append(f"dropped unknown metrics {bad}")
+        unknown = [b for b in plan.evaluation.baselines if b not in KNOWN_BASELINES]
+        if unknown:
+            plan.evaluation.baselines = [b for b in plan.evaluation.baselines
+                                         if b in KNOWN_BASELINES]
+            repairs.append(f"dropped unknown baselines {unknown}; known: {sorted(KNOWN_BASELINES)}")
         if plan.evaluation.primary_metric not in KNOWN_PRIMARY:
             new = plan.evaluation.metrics[0] if plan.evaluation.metrics else "frechet_distance"
             repairs.append(f"primary metric '{plan.evaluation.primary_metric}' -> '{new}'")

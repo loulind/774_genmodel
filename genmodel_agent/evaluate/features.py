@@ -43,16 +43,18 @@ class SmallCNN:
             nn.AdaptiveAvgPool2d(1), nn.Flatten()).to(self.device)
         self.head = nn.Linear(128, n_classes).to(self.device)
 
-    def fit(self, X, y, X_val, y_val, seconds: float, max_epochs: int = 60):
+    def fit(self, X, y, X_val, y_val, seconds: float, max_epochs: int = 60, class_weights=None):
         X = torch.as_tensor(X, dtype=torch.float32, device=self.device)
         Y = torch.as_tensor(y, dtype=torch.long, device=self.device)
         Xv = torch.as_tensor(X_val, dtype=torch.float32, device=self.device)
         Yv = torch.as_tensor(y_val, dtype=torch.long, device=self.device)
         params = list(self.body.parameters()) + list(self.head.parameters())
         opt = torch.optim.Adam(params, lr=1e-3, weight_decay=1e-4)
+        W = None if class_weights is None else torch.as_tensor(class_weights, dtype=torch.float32,
+                                                               device=self.device)
 
         def step(idx):
-            loss = F.cross_entropy(self.head(self.body(X[idx])), Y[idx])
+            loss = F.cross_entropy(self.head(self.body(X[idx])), Y[idx], weight=W)
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -146,22 +148,29 @@ class EvalSpace:
         return self.tab.transform(canonical)
 
 
-def make_classifier(space: EvalSpace, n_classes: int, seed: int):
+def make_classifier(space: EvalSpace, n_classes: int, seed: int, weighted: bool = False):
     """Downstream classifier for utility tests: CNN for images, multinomial
     logistic regression on evaluation features otherwise (fast, deterministic,
     and well understood -- utility differences then reflect the data, not tuning)."""
     if space.modality == "image":
-        return _CNNClassifier(space, n_classes, seed)
-    return _LogisticClassifier(space, seed)
+        return _CNNClassifier(space, n_classes, seed, weighted)
+    return _LogisticClassifier(space, seed, weighted)
+
+
+def balanced_weights(y, n_classes) -> np.ndarray:
+    """Inverse-frequency class weights, n / (K * n_k), as sklearn's 'balanced'."""
+    counts = np.bincount(y, minlength=n_classes).astype(float)
+    return np.where(counts > 0, len(y) / (n_classes * np.maximum(counts, 1)), 0.0)
 
 
 class _CNNClassifier:
-    def __init__(self, space, n_classes, seed):
-        self.space, self.n_classes, self.seed = space, n_classes, seed
+    def __init__(self, space, n_classes, seed, weighted=False):
+        self.space, self.n_classes, self.seed, self.weighted = space, n_classes, seed, weighted
 
     def fit(self, X, y, X_val, y_val):
         self.model = SmallCNN(X.shape[1], self.n_classes, self.space.device, self.seed)
-        self.model.fit(X, y, X_val, y_val, self.space.classifier_seconds)
+        w = balanced_weights(y, self.n_classes) if self.weighted else None
+        self.model.fit(X, y, X_val, y_val, self.space.classifier_seconds, class_weights=w)
         return self
 
     def predict(self, X):
@@ -169,8 +178,8 @@ class _CNNClassifier:
 
 
 class _LogisticClassifier:
-    def __init__(self, space, seed):
-        self.space, self.seed = space, seed
+    def __init__(self, space, seed, weighted=False):
+        self.space, self.seed, self.weighted = space, seed, weighted
 
     def fit(self, X, y, X_val=None, y_val=None):
         from sklearn.linear_model import LogisticRegression
@@ -178,7 +187,8 @@ class _LogisticClassifier:
 
         F_ = self.space.features(X)
         self.scaler = StandardScaler().fit(F_)
-        self.model = LogisticRegression(max_iter=3000, C=1.0, random_state=self.seed)
+        self.model = LogisticRegression(max_iter=3000, C=1.0, random_state=self.seed,
+                                        class_weight="balanced" if self.weighted else None)
         self.model.fit(self.scaler.transform(F_), y)
         return self
 

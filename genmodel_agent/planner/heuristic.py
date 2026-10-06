@@ -540,8 +540,12 @@ def choose_evaluation(ctx: Context, task: TaskSpec, log: DecisionLog) -> EvalPla
                    "augmentation": "macro_f1_gain"}.get(t, "frechet_distance")
         if not ctx.has_labels:
             primary = "frechet_distance"
-        ev = EvalPlan(metrics=metrics, primary_metric=primary,
-                      baselines=["real_only_classifier"] if ctx.has_labels else [],
+        baselines = ["real_only_classifier"] if ctx.has_labels else []
+        if ctx.has_labels and t == "class_balancing":
+            # The cheapest competitor to synthetic oversampling is reweighting the
+            # loss; the generator has to beat that, not just the unweighted fit.
+            baselines.append("class_weighted_classifier")
+        ev = EvalPlan(metrics=metrics, primary_metric=primary, baselines=baselines,
                       feature_space=space)
         why = (f"Fidelity, diversity and memorization measured in {space} (a domain-appropriate "
                "space: Inception features would be mis-specified for these data); utility via a "
